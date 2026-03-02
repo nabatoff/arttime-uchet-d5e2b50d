@@ -2,15 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+
 @layer base {
   :root {
-    --background: 0 0% 0%;
+    --background: 0 0% 3%;
     --foreground: 0 0% 95%;
 
-    --card: 0 0% 7%;
+    --card: 0 0% 8%;
     --card-foreground: 0 0% 95%;
 
-    --popover: 0 0% 7%;
+    --popover: 0 0% 8%;
     --popover-foreground: 0 0% 95%;
 
     --primary: 0 100% 50%;
@@ -20,7 +22,7 @@
     --secondary-foreground: 0 0% 95%;
 
     --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 60%;
+    --muted-foreground: 0 0% 55%;
 
     --accent: 0 100% 50%;
     --accent-foreground: 0 0% 100%;
@@ -28,8 +30,8 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
+    --border: 0 0% 14%;
+    --input: 0 0% 14%;
     --ring: 0 100% 50%;
 
     --radius: 0.75rem;
@@ -39,6 +41,11 @@
 
     --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
+
+    /* Custom tokens */
+    --glow-primary: 0 100% 50%;
+    --surface-glass: 0 0% 100% / 0.04;
+    --surface-glass-border: 0 0% 100% / 0.08;
   }
 }
 
@@ -54,15 +61,63 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Custom scrollbar for dark theme */
+  /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 4px;
   }
   ::-webkit-scrollbar-track {
-    background: hsl(0 0% 5%);
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: hsl(0 0% 25%);
+    background: hsl(0 0% 20%);
     border-radius: 4px;
+  }
+}
+
+@layer components {
+  .glass-surface {
+    @apply bg-card/80 backdrop-blur-xl border border-[hsl(var(--surface-glass-border))];
+  }
+
+  .glass-header {
+    background: linear-gradient(
+      to bottom,
+      hsl(0 0% 5% / 0.95),
+      hsl(0 0% 5% / 0.85)
+    );
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  .glass-nav {
+    background: linear-gradient(
+      to top,
+      hsl(0 0% 5% / 0.98),
+      hsl(0 0% 5% / 0.88)
+    );
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  .glow-red {
+    box-shadow: 0 0 20px -5px hsl(var(--glow-primary) / 0.3),
+                0 0 60px -10px hsl(var(--glow-primary) / 0.15);
+  }
+
+  .text-gradient-red {
+    background: linear-gradient(135deg, hsl(0 100% 55%), hsl(0 100% 40%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .card-elevated {
+    @apply bg-card border border-border rounded-xl;
+    box-shadow: 0 2px 12px -2px hsl(0 0% 0% / 0.5),
+                0 0 0 1px hsl(0 0% 100% / 0.03);
+  }
+
+  .font-display {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
   }
 }

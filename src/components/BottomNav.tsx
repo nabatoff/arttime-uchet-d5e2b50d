@@ -1,11 +1,11 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Wallet, Receipt, Gauge, UserCircle, LayoutDashboard, Users } from "lucide-react";
+import { Wallet, Receipt, Gauge, LayoutDashboard, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMileageGate } from "@/contexts/MileageGateContext";
 import { cn } from "@/lib/utils";
 
 const adminTabs = [
-  { path: "/admin", label: "Мой баланс", icon: LayoutDashboard },
+  { path: "/admin", label: "Баланс", icon: LayoutDashboard },
   { path: "/admin/expenses", label: "Расходы", icon: Receipt },
   { path: "/admin/mileage", label: "Пробег", icon: Gauge },
   { path: "/admin/drivers", label: "Водители", icon: Users },
@@ -23,7 +23,7 @@ const BottomNav = () => {
     ? adminTabs
     : mileageSubmittedToday
       ? [
-          { path: "/dashboard", label: "Мой баланс", icon: Wallet },
+          { path: "/dashboard", label: "Баланс", icon: Wallet },
           { path: "/expenses", label: "Расходы", icon: Receipt },
         ]
       : [
@@ -31,8 +31,8 @@ const BottomNav = () => {
         ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-lg">
-      <div className="mx-auto flex max-w-lg items-center justify-around py-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 glass-nav border-t border-border/60">
+      <div className="mx-auto flex max-w-lg items-center justify-around py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
         {tabs.map((tab) => {
           const isActive = location.pathname === tab.path;
           const Icon = tab.icon;
@@ -41,11 +41,14 @@ const BottomNav = () => {
               key={tab.path}
               onClick={() => navigate(tab.path)}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-3 py-1.5 transition-colors",
-                isActive ? "text-primary" : "text-muted-foreground"
+                "relative flex flex-col items-center gap-0.5 px-4 py-1.5 transition-all duration-200",
+                isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Icon className="h-5 w-5" />
+              {isActive && (
+                <span className="absolute -top-1.5 h-0.5 w-6 rounded-full bg-primary" />
+              )}
+              <Icon className={cn("h-5 w-5", isActive && "drop-shadow-[0_0_6px_hsl(var(--primary)/0.5)]")} />
               <span className="text-[10px] font-medium">{tab.label}</span>
             </button>
           );
