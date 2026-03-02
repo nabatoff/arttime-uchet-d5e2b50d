@@ -173,10 +173,27 @@ const Expenses = () => {
                 onChange={(e) => setComment(e.target.value)}
                 className="h-12 bg-secondary"
               />
-              <PhotoUpload
-                label="Фото чека"
-                onUpload={setReceiptUrl}
-              />
+              {/* Show existing receipt or upload new */}
+              {receiptUrl ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Фото чека:</p>
+                  <div className="relative">
+                    <img src={receiptUrl} alt="Чек" className="h-32 w-full rounded-lg border border-border object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setReceiptUrl("")}
+                      className="absolute right-2 top-2 rounded-full bg-background/80 p-1 text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <PhotoUpload
+                  label="Фото чека"
+                  onUpload={setReceiptUrl}
+                />
+              )}
               <Button
                 onClick={handleSave}
                 disabled={!canSave}
