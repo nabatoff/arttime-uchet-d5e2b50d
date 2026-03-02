@@ -84,6 +84,10 @@ export const api = {
   updateExpense: (expense: Expense) =>
     apiPost<Expense>("updateExpense", expense),
 
+  // Delete expense
+  deleteExpense: (expenseId: string) =>
+    apiPost("deleteExpense", { expenseId }),
+
   // Save mileage — action is "saveMileage"
   addMileage: (report: Omit<MileageReport, "id">) =>
     apiPost<MileageReport>("saveMileage", {
