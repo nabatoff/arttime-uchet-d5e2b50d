@@ -4,7 +4,6 @@ import PageLayout from "@/components/PageLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Loader2, ChevronRight } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type User } from "@/types";
 import { cn } from "@/lib/utils";
@@ -34,26 +33,13 @@ const AdminDashboard = () => {
     load();
   }, []);
 
-  const handleCurrencyToggle = async (driver: User, currency: Currency, enabled: boolean) => {
-    const current = driver.availableCurrencies
+  // Get active currencies for the selected driver
+  const getActiveCurrencies = (driver: User): Currency[] => {
+    const available = driver.availableCurrencies
       .split(",")
       .map((c) => c.trim())
-      .filter(Boolean);
-    const updated = enabled
-      ? [...current, currency]
-      : current.filter((c) => c !== currency);
-    const newStr = updated.join(",");
-
-    await api.updateDriverCurrencies(driver.id, newStr);
-
-    setDrivers((prev) =>
-      prev.map((d) =>
-        d.id === driver.id ? { ...d, availableCurrencies: newStr } : d
-      )
-    );
-    if (selectedDriver?.id === driver.id) {
-      setSelectedDriver({ ...driver, availableCurrencies: newStr });
-    }
+      .filter((c) => ALL_CURRENCIES.includes(c as Currency)) as Currency[];
+    return available.length > 0 ? available : ALL_CURRENCIES;
   };
 
   const handleBalanceUpdate = async () => {
@@ -88,6 +74,8 @@ const AdminDashboard = () => {
     );
   }
 
+  const activeCurrencies = selectedDriver ? getActiveCurrencies(selectedDriver) : [];
+
   return (
     <PageLayout title="Панель управления">
       {/* Driver Carousel */}
@@ -121,7 +109,7 @@ const AdminDashboard = () => {
 
       {selectedDriver && (
         <div className="space-y-4 animate-fade-in">
-          {/* Balances */}
+          {/* Balances — only active currencies */}
           <div>
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-muted-foreground">Балансы</h2>
@@ -134,45 +122,25 @@ const AdminDashboard = () => {
                 Изменить <ChevronRight className="ml-1 h-3 w-3" />
               </Button>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              {ALL_CURRENCIES.map((c) => (
-                <Card key={c} className="border-border bg-card">
-                  <CardContent className="p-3">
-                    <p className="text-xs text-muted-foreground">{CURRENCY_FLAGS[c]} {c}</p>
-                    <p className="text-lg font-bold text-foreground">
-                      {selectedDriver.balances?.[c]?.toLocaleString("ru-RU") ?? "0"}
-                      <span className="ml-1 text-xs text-muted-foreground">{CURRENCY_SYMBOLS[c]}</span>
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-
-          {/* Currency Toggles */}
-          <div>
-            <h2 className="mb-2 text-sm font-semibold text-muted-foreground">Доступные валюты</h2>
-            <Card className="border-border bg-card">
-              <CardContent className="divide-y divide-border p-0">
-                {ALL_CURRENCIES.map((c) => {
-                  const enabled = selectedDriver.availableCurrencies
-                    .split(",")
-                    .map((x) => x.trim())
-                    .includes(c);
-                  return (
-                    <div key={c} className="flex items-center justify-between px-4 py-3">
-                      <span className="text-sm text-foreground">
-                        {CURRENCY_FLAGS[c]} {c}
-                      </span>
-                      <Switch
-                        checked={enabled}
-                        onCheckedChange={(v) => handleCurrencyToggle(selectedDriver, c, v)}
-                      />
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
+            {activeCurrencies.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                Нет доступных валют. Настройте в разделе «Настройки».
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {activeCurrencies.map((c) => (
+                  <Card key={c} className="border-border bg-card">
+                    <CardContent className="p-3">
+                      <p className="text-xs text-muted-foreground">{CURRENCY_FLAGS[c]} {c}</p>
+                      <p className="text-lg font-bold text-foreground">
+                        {selectedDriver.balances?.[c]?.toLocaleString("ru-RU") ?? "0"}
+                        <span className="ml-1 text-xs text-muted-foreground">{CURRENCY_SYMBOLS[c]}</span>
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -189,7 +157,7 @@ const AdminDashboard = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {ALL_CURRENCIES.map((c) => (
+                {activeCurrencies.map((c) => (
                   <SelectItem key={c} value={c}>
                     {CURRENCY_FLAGS[c]} {c} ({CURRENCY_SYMBOLS[c]})
                   </SelectItem>
