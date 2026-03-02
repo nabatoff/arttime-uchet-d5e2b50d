@@ -3,12 +3,9 @@ import { api } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 import PageLayout from "@/components/PageLayout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
-import { ALL_CURRENCIES, CURRENCY_SYMBOLS, type Currency, type User } from "@/types";
+import { ALL_CURRENCIES, type Currency, type User } from "@/types";
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 
@@ -28,17 +25,10 @@ const AdminDashboard = () => {
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
 
-  // Balance adjustment
-  const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
-  const [adjCurrency, setAdjCurrency] = useState<Currency>("KZT");
-  const [adjAmount, setAdjAmount] = useState("");
-  const [adjSaving, setAdjSaving] = useState(false);
-
   useEffect(() => {
     const load = async () => {
       const result = await api.getDrivers();
       if (result.success && result.data) {
-        // Filter out admins
         const onlyDrivers = result.data.filter(
           (d) => d.role.toLowerCase() !== "admin"
         );
@@ -67,24 +57,6 @@ const AdminDashboard = () => {
     } else if (diff < 0 && currentIndex > 0) {
       setCurrentIndex((i) => i - 1);
     }
-  };
-
-  const handleBalanceUpdate = async () => {
-    if (!selectedDriver || !adjAmount) return;
-    setAdjSaving(true);
-    await api.updateBalance(selectedDriver.id, adjCurrency, Number(adjAmount));
-
-    setDrivers((prev) =>
-      prev.map((d) =>
-        d.id === selectedDriver.id
-          ? { ...d, balances: { ...d.balances, [adjCurrency]: Number(adjAmount) } }
-          : d
-      )
-    );
-
-    setAdjSaving(false);
-    setBalanceDialogOpen(false);
-    setAdjAmount("");
   };
 
   const today = new Date();
@@ -166,15 +138,10 @@ const AdminDashboard = () => {
               const balance = selectedDriver?.balances?.[c] ?? 0;
               const isNegative = balance < 0;
               return (
-                <button
+                <div
                   key={c}
-                  onClick={() => {
-                    setAdjCurrency(c);
-                    setAdjAmount(String(balance));
-                    setBalanceDialogOpen(true);
-                  }}
                   className={cn(
-                    "w-full rounded-xl px-5 py-4 text-center transition-transform active:scale-[0.98]",
+                    "w-full rounded-xl px-5 py-4 text-center",
                     isNegative
                       ? "bg-gradient-to-r from-red-600 to-red-500"
                       : "bg-gradient-to-r from-green-600 to-green-500"
@@ -186,7 +153,7 @@ const AdminDashboard = () => {
                   <p className="mt-1 text-3xl font-bold text-white">
                     {balance.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
-                </button>
+                </div>
               );
             })
           )}
@@ -210,43 +177,6 @@ const AdminDashboard = () => {
           </div>
         )}
       </div>
-
-      {/* Balance Adjustment Dialog */}
-      <Dialog open={balanceDialogOpen} onOpenChange={setBalanceDialogOpen}>
-        <DialogContent className="border-border bg-card text-foreground sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Изменить баланс — {selectedDriver?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Select value={adjCurrency} onValueChange={(v) => setAdjCurrency(v as Currency)}>
-              <SelectTrigger className="h-12 bg-secondary">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {activeCurrencies.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {CURRENCY_LABELS[c]} ({CURRENCY_SYMBOLS[c]})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              type="number"
-              placeholder="Новый баланс"
-              value={adjAmount}
-              onChange={(e) => setAdjAmount(e.target.value)}
-              className="h-12 bg-secondary"
-            />
-            <Button
-              onClick={handleBalanceUpdate}
-              disabled={!adjAmount || adjSaving}
-              className="h-12 w-full text-base font-semibold"
-            >
-              {adjSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Сохранить"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </PageLayout>
   );
 };
