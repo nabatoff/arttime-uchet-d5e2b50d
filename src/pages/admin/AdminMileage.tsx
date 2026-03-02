@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/services/api";
 import PageLayout from "@/components/PageLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import type { MileageReport } from "@/types";
@@ -10,6 +10,7 @@ import type { MileageReport } from "@/types";
 const AdminMileage = () => {
   const [reports, setReports] = useState<MileageReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -34,9 +35,9 @@ const AdminMileage = () => {
         <div className="space-y-2 animate-fade-in">
           {reports.map((r) => (
             <Card key={r.id} className="border-border bg-card overflow-hidden">
-              <CardContent className="flex items-center p-0">
-                {/* Left: Driver info */}
-                <div className="flex flex-1 items-center gap-3 p-3">
+              <CardContent className="p-3">
+                {/* Top row: driver + km */}
+                <div className="flex items-center gap-3">
                   {r.driverPhoto ? (
                     <img
                       src={r.driverPhoto}
@@ -44,30 +45,53 @@ const AdminMileage = () => {
                       className="h-10 w-10 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-sm font-bold text-foreground">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-bold text-foreground">
                       {r.driverName.charAt(0)}
                     </div>
                   )}
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground">{r.driverName}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {format(new Date(r.date), "dd MMM yyyy", { locale: ru })}
+                      {format(new Date(r.date), "dd MMM yyyy, HH:mm", { locale: ru })}
                     </p>
                   </div>
-                </div>
-
-                {/* Divider */}
-                <div className="h-12 w-px bg-border" />
-
-                {/* Right: KM */}
-                <div className="flex items-center justify-center px-4">
-                  <span className="text-xl font-bold text-info">
+                  <span className="text-lg font-bold text-primary shrink-0">
                     {r.km.toLocaleString("ru-RU")} км
                   </span>
                 </div>
+
+                {/* Odometer photo */}
+                {r.photoUrl && (
+                  <img
+                    src={r.photoUrl}
+                    alt="Фото спидометра"
+                    onClick={() => setZoomImage(r.photoUrl)}
+                    className="mt-2 h-32 w-full cursor-pointer rounded-lg border border-border object-cover"
+                  />
+                )}
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Zoom overlay */}
+      {zoomImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+          onClick={() => setZoomImage(null)}
+        >
+          <img
+            src={zoomImage}
+            alt="Фото"
+            className="max-h-[85vh] max-w-[90vw] rounded-lg object-contain shadow-lg"
+          />
+          <button
+            onClick={() => setZoomImage(null)}
+            className="absolute right-4 top-4 rounded-full bg-secondary p-2"
+          >
+            <X className="h-5 w-5 text-foreground" />
+          </button>
         </div>
       )}
     </PageLayout>
