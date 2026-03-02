@@ -14,7 +14,6 @@ import AdminMileage from "./pages/admin/AdminMileage";
 import AdminDrivers from "./pages/admin/AdminDrivers";
 import AdminExpenses from "./pages/admin/AdminExpenses";
 import NotFound from "./pages/NotFound";
-import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
