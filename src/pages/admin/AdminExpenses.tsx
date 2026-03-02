@@ -230,7 +230,7 @@ const AdminExpenses = () => {
           </Button>
         )}
         <div className="flex-1 min-w-0" />
-        <Button variant="secondary" size="sm" onClick={exportToExcel} className="gap-1.5" disabled={filtered.length === 0}>
+        <Button variant="secondary" size="sm" onClick={exportToExcel} className="gap-1.5 shrink-0" disabled={filtered.length === 0}>
           <Download className="h-4 w-4" />
           Excel
         </Button>
