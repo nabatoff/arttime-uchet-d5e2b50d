@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/services/api";
 import PageLayout from "@/components/PageLayout";
@@ -7,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
+import { useStaggerIn, useFadeIn } from "@/hooks/useGsap";
 
 const CURRENCY_LABELS: Record<Currency, string> = {
   KZT: "Тенге",
@@ -26,6 +28,8 @@ const CURRENCY_SYMBOLS: Record<Currency, string> = {
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const greetingRef = useRef<HTMLDivElement>(null);
+  const cardsRef = useRef<HTMLDivElement>(null);
 
   const activeCurrencies = user?.availableCurrencies
     ?.split(",")
@@ -42,6 +46,9 @@ const Dashboard = () => {
     enabled: !!user,
   });
 
+  useFadeIn(greetingRef);
+  useStaggerIn(cardsRef, ":scope > div", [balances]);
+
   const today = new Date();
   const dateStr = format(today, "d MMMM, EEEE", { locale: ru });
 
@@ -52,15 +59,15 @@ const Dashboard = () => {
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="animate-fade-in">
-          <div className="mb-6">
+        <div>
+          <div ref={greetingRef} className="mb-6" style={{ opacity: 0 }}>
             <p className="text-xs text-muted-foreground capitalize">{dateStr}</p>
             <h2 className="text-xl font-bold text-foreground font-display">
               Привет, {user?.name?.split(" ")[0] || "Водитель"} 👋
             </h2>
           </div>
 
-          <div className="space-y-3">
+          <div ref={cardsRef} className="space-y-3">
             {activeCurrencies.length === 0 && (
               <p className="py-10 text-center text-muted-foreground">
                 Нет активных валют
@@ -76,6 +83,7 @@ const Dashboard = () => {
                     "card-elevated rounded-2xl px-5 py-5",
                     isNegative && "border-destructive/30"
                   )}
+                  style={{ opacity: 0 }}
                 >
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     {CURRENCY_LABELS[currency]}

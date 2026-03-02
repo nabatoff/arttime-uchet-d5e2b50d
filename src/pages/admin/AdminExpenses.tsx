@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { api } from "@/services/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PageLayout from "@/components/PageLayout";
@@ -17,9 +17,12 @@ import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useScrollReveal } from "@/hooks/useGsap";
 
 const AdminExpenses = () => {
   const queryClient = useQueryClient();
+  const listRef = useRef<HTMLDivElement>(null);
+  useScrollReveal(listRef);
   const [showFilters, setShowFilters] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [addType, setAddType] = useState<"expense" | "topup">("expense");
@@ -440,7 +443,7 @@ const AdminExpenses = () => {
           {hasActiveFilters ? "Нет расходов по выбранным фильтрам" : "Нет расходов"}
         </p>
       ) : (
-        <div className="space-y-2 animate-fade-in">
+        <div ref={listRef} className="space-y-2">
           <p className="mb-2 text-xs text-muted-foreground">
             Найдено: {filtered.length}
           </p>

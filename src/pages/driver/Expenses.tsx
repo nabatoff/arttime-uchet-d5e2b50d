@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/services/api";
 import PageLayout from "@/components/PageLayout";
@@ -14,11 +14,14 @@ import { format, isToday, subDays, isAfter, startOfDay } from "date-fns";
 import { ru } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useScrollReveal } from "@/hooks/useGsap";
 
 const Expenses = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  useScrollReveal(listRef);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
@@ -203,7 +206,7 @@ const Expenses = () => {
       ) : expenses.length === 0 ? (
         <p className="py-10 text-center text-muted-foreground">Нет расходов за последние 3 дня</p>
       ) : (
-        <div className="space-y-2 animate-fade-in">
+        <div ref={listRef} className="space-y-2">
           {expenses.map((expense) => {
             const expenseDate = new Date(expense.date);
             const editable = isToday(expenseDate) && expense.category !== "Пополнение";

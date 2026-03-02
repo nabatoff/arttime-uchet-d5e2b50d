@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useIsMobile } from "@/hooks/use-mobile";
 import BottomNav from "./BottomNav";
 import PullToRefresh from "./PullToRefresh";
+import PageTransition from "./PageTransition";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
 
@@ -76,7 +77,9 @@ const PageLayout = ({ children, title }: PageLayoutProps) => {
           </div>
         </header>
       )}
-      <main className="flex-1 px-4 pb-20 pt-4">{content}</main>
+      <main className="flex-1 px-4 pb-20 pt-4 overflow-hidden">
+        <PageTransition>{content}</PageTransition>
+      </main>
       <BottomNav />
     </div>
   );
