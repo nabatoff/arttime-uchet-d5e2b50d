@@ -59,7 +59,7 @@ export function useCountUp(
 /**
  * Fade-slide element in on mount
  */
-export function useFadeIn(ref: React.RefObject<HTMLElement | null>, delay = 0) {
+export function useFadeIn(ref: React.RefObject<HTMLElement | null>, delay = 0, deps: unknown[] = []) {
   useEffect(() => {
     if (!ref.current) return;
     gsap.fromTo(
@@ -67,7 +67,7 @@ export function useFadeIn(ref: React.RefObject<HTMLElement | null>, delay = 0) {
       { opacity: 0, y: 16 },
       { opacity: 1, y: 0, duration: 0.5, delay, ease: "power2.out", clearProps: "all" }
     );
-  }, []);
+  }, deps);
 }
 
 /**
