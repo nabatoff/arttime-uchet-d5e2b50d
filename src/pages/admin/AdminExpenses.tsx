@@ -214,10 +214,10 @@ const AdminExpenses = () => {
           variant={showFilters ? "default" : "secondary"}
           size="sm"
           onClick={() => setShowFilters(!showFilters)}
-          className={hasActiveFilters ? "gap-0 px-2 shrink-0" : "gap-1.5 shrink-0"}
+          className="gap-1.5 shrink-0"
         >
           <Filter className="h-4 w-4" />
-          {!hasActiveFilters && " Фильтры"}
+          Фильтры
           {hasActiveFilters && (
             <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary-foreground text-[10px] font-bold text-primary">
               !
@@ -225,8 +225,8 @@ const AdminExpenses = () => {
           )}
         </Button>
         {hasActiveFilters && (
-          <Button variant="ghost" size="icon" onClick={clearFilters} className="h-8 w-8 shrink-0 text-muted-foreground">
-            <X className="h-4 w-4" />
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-xs text-muted-foreground shrink-0">
+            <X className="h-3 w-3" /> Сбросить
           </Button>
         )}
         <div className="flex-1 min-w-0" />
