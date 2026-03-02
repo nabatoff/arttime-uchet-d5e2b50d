@@ -83,7 +83,7 @@ const Dashboard = () => {
                     "card-elevated rounded-2xl px-5 py-5",
                     isNegative && "border-destructive/30"
                   )}
-                  style={{ opacity: 0 }}
+                  >
                 >
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     {CURRENCY_LABELS[currency]}
