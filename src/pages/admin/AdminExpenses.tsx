@@ -30,6 +30,13 @@ const AdminExpenses = () => {
   const [addCurrency, setAddCurrency] = useState<Currency>("KZT");
   const [addComment, setAddComment] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editExpense, setEditExpense] = useState<Expense | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editCategory, setEditCategory] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editCurrency, setEditCurrency] = useState<Currency>("KZT");
+  const [editComment, setEditComment] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
   const { toast } = useToast();
 
   // Filters
