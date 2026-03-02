@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "@/services/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PageLayout from "@/components/PageLayout";
 import PhotoUpload from "@/components/PhotoUpload";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,10 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 
 const AdminExpenses = () => {
-  const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
-  const [drivers, setDrivers] = useState<User[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showFilters, setShowFilters] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [addType, setAddType] = useState<"expense" | "topup">("expense");
@@ -48,26 +46,31 @@ const AdminExpenses = () => {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
-  useEffect(() => {
-    const load = async () => {
-      const [expResult, driversResult, appResult] = await Promise.all([
-        api.getExpenses("", "Admin"),
-        api.getDrivers(),
-        api.getAppData(),
-      ]);
-      if (expResult.success && expResult.data) {
-        setAllExpenses(expResult.data);
-      }
-      if (driversResult.success && driversResult.data) {
-        setDrivers(driversResult.data.filter((d) => d.role.toLowerCase() !== "admin"));
-      }
-      if (appResult.success && appResult.data) {
-        setCategories(appResult.data.categories);
-      }
-      setLoading(false);
-    };
-    load();
-  }, []);
+  const { data: allExpenses = [], isLoading: loadingExpenses } = useQuery({
+    queryKey: ["adminExpenses"],
+    queryFn: async () => {
+      const result = await api.getExpenses("", "Admin");
+      return result.success && result.data ? result.data : [] as Expense[];
+    },
+  });
+
+  const { data: drivers = [] } = useQuery({
+    queryKey: ["drivers"],
+    queryFn: async () => {
+      const result = await api.getDrivers();
+      return result.success && result.data ? result.data.filter((d) => d.role.toLowerCase() !== "admin") : [] as User[];
+    },
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["appData"],
+    queryFn: async () => {
+      const result = await api.getAppData();
+      return result.success && result.data ? result.data.categories : [] as string[];
+    },
+  });
+
+  const loading = loadingExpenses;
 
   const getDriverName = (driverId: string) => {
     const driver = drivers.find((d) => String(d.id) === String(driverId));
@@ -100,15 +103,9 @@ const AdminExpenses = () => {
 
   const hasActiveFilters = filterDriver !== "all" || filterCategory !== "all" || dateFrom || dateTo;
 
-  const reloadData = async () => {
-    const [expResult, driversResult] = await Promise.all([
-      api.getExpenses("", "Admin"),
-      api.getDrivers(),
-    ]);
-    if (expResult.success && expResult.data) setAllExpenses(expResult.data);
-    if (driversResult.success && driversResult.data) {
-      setDrivers(driversResult.data.filter((d) => d.role.toLowerCase() !== "admin"));
-    }
+  const reloadData = () => {
+    queryClient.invalidateQueries({ queryKey: ["adminExpenses"] });
+    queryClient.invalidateQueries({ queryKey: ["drivers"] });
   };
 
   const openEditExpense = (expense: Expense) => {

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { api } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 import PageLayout from "@/components/PageLayout";
@@ -8,6 +8,7 @@ import { ALL_CURRENCIES, type Currency, type User } from "@/types";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
 
 const CURRENCY_LABELS: Record<Currency, string> = {
   KZT: "Тенге",
@@ -27,25 +28,20 @@ const CURRENCY_SYMBOLS: Record<Currency, string> = {
 
 const AdminDashboard = () => {
   const { user: currentUser } = useAuth();
-  const [drivers, setDrivers] = useState<User[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
 
-  useEffect(() => {
-    const load = async () => {
+  const { data: drivers = [], isLoading } = useQuery({
+    queryKey: ["drivers"],
+    queryFn: async () => {
       const result = await api.getDrivers();
       if (result.success && result.data) {
-        const onlyDrivers = result.data.filter(
-          (d) => d.role.toLowerCase() !== "admin"
-        );
-        setDrivers(onlyDrivers);
+        return result.data.filter((d) => d.role.toLowerCase() !== "admin");
       }
-      setLoading(false);
-    };
-    load();
-  }, []);
+      return [] as User[];
+    },
+  });
 
   const selectedDriver = drivers[currentIndex] || null;
 
@@ -70,7 +66,7 @@ const AdminDashboard = () => {
   const today = new Date();
   const dateStr = format(today, "d MMMM, EEEE", { locale: ru });
 
-  if (loading) {
+  if (isLoading) {
     return (
       <PageLayout title="Мой баланс">
         <div className="flex items-center justify-center py-20">
@@ -97,7 +93,6 @@ const AdminDashboard = () => {
         onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
         onTouchEnd={(e) => { touchEndX.current = e.changedTouches[0].clientX; handleSwipe(); }}
       >
-        {/* Greeting */}
         <div className="mb-6">
           <p className="text-xs text-muted-foreground capitalize">{dateStr}</p>
           <h2 className="text-xl font-bold text-foreground font-display">
@@ -105,35 +100,19 @@ const AdminDashboard = () => {
           </h2>
         </div>
 
-        {/* Driver selector */}
         <div className="mb-4 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={currentIndex === 0}
-            onClick={() => setCurrentIndex((i) => i - 1)}
-            className="text-muted-foreground"
-          >
+          <Button variant="ghost" size="icon" disabled={currentIndex === 0} onClick={() => setCurrentIndex((i) => i - 1)} className="text-muted-foreground">
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div className="text-center">
             <p className="text-lg font-bold text-foreground">{selectedDriver?.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {currentIndex + 1} / {drivers.length}
-            </p>
+            <p className="text-xs text-muted-foreground">{currentIndex + 1} / {drivers.length}</p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={currentIndex === drivers.length - 1}
-            onClick={() => setCurrentIndex((i) => i + 1)}
-            className="text-muted-foreground"
-          >
+          <Button variant="ghost" size="icon" disabled={currentIndex === drivers.length - 1} onClick={() => setCurrentIndex((i) => i + 1)} className="text-muted-foreground">
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
 
-        {/* Balance Cards */}
         <div className="space-y-3">
           {activeCurrencies.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">
@@ -144,20 +123,12 @@ const AdminDashboard = () => {
               const balance = selectedDriver?.balances?.[c] ?? 0;
               const isNegative = balance < 0;
               return (
-                <div
-                  key={c}
-                  className={cn(
-                    "card-elevated rounded-2xl px-5 py-5",
-                    isNegative && "border-destructive/30"
-                  )}
-                >
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    {CURRENCY_LABELS[c]}
-                  </p>
+                <div key={c} className={cn("card-elevated rounded-2xl px-5 py-5", isNegative && "border-destructive/30")}>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{CURRENCY_LABELS[c]}</p>
                   <div className="mt-2 flex items-baseline gap-2">
                     <p className={cn(
                       "text-3xl font-bold font-display",
-                      isNegative ? "text-destructive" : "text-success"
+                      balance === 0 ? "text-muted-foreground" : isNegative ? "text-destructive" : "text-success"
                     )}>
                       {balance.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
@@ -169,7 +140,6 @@ const AdminDashboard = () => {
           )}
         </div>
 
-        {/* Dots indicator */}
         {drivers.length > 1 && (
           <div className="mt-6 flex justify-center gap-1.5">
             {drivers.map((_, i) => (
@@ -178,9 +148,7 @@ const AdminDashboard = () => {
                 onClick={() => setCurrentIndex(i)}
                 className={cn(
                   "h-2 rounded-full transition-all",
-                  i === currentIndex
-                    ? "w-6 bg-primary"
-                    : "w-2 bg-muted-foreground/30"
+                  i === currentIndex ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30"
                 )}
               />
             ))}

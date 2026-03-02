@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/services/api";
 import PageLayout from "@/components/PageLayout";
@@ -13,13 +13,12 @@ import { ALL_CURRENCIES, CURRENCY_SYMBOLS, type Currency, type Expense } from "@
 import { format, isToday, subDays, isAfter, startOfDay } from "date-fns";
 import { ru } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const Expenses = () => {
   const { user } = useAuth();
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  const queryClient = useQueryClient();
   const [zoomImage, setZoomImage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
@@ -36,27 +35,29 @@ const Expenses = () => {
     .map((c) => c.trim())
     .filter((c) => ALL_CURRENCIES.includes(c as Currency)) as Currency[] || ALL_CURRENCIES;
 
-  useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const [expResult, appResult] = await Promise.all([
-        api.getExpenses(user.id),
-        api.getAppData(),
-      ]);
-      if (expResult.success && expResult.data) {
-        // Filter last 3 days
+  const { data: expenses = [], isLoading: loadingExpenses } = useQuery({
+    queryKey: ["expenses", user?.id],
+    queryFn: async () => {
+      const result = await api.getExpenses(user!.id);
+      if (result.success && result.data) {
         const threeDaysAgo = startOfDay(subDays(new Date(), 3));
-        setExpenses(
-          expResult.data.filter((e) => isAfter(new Date(e.date), threeDaysAgo))
-        );
+        return result.data.filter((e) => isAfter(new Date(e.date), threeDaysAgo));
       }
-      if (appResult.success && appResult.data) {
-        setCategories(appResult.data.categories);
-      }
-      setLoading(false);
-    };
-    load();
-  }, [user]);
+      return [] as Expense[];
+    },
+    enabled: !!user,
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["appData"],
+    queryFn: async () => {
+      const result = await api.getAppData();
+      if (result.success && result.data) return result.data.categories;
+      return [] as string[];
+    },
+  });
+
+  const loading = loadingExpenses;
 
   const resetForm = () => {
     setAmount("");
@@ -87,7 +88,7 @@ const Expenses = () => {
     setSaving(true);
 
     if (editingExpense) {
-      const result = await api.updateExpense({
+      await api.updateExpense({
         ...editingExpense,
         amount: Number(amount),
         currency,
@@ -95,13 +96,8 @@ const Expenses = () => {
         comment,
         receiptUrl,
       });
-      if (result.success && result.data) {
-        setExpenses((prev) =>
-          prev.map((e) => (e.id === editingExpense.id ? result.data! : e))
-        );
-      }
     } else {
-      const result = await api.addExpense({
+      await api.addExpense({
         driverId: user.id,
         date: new Date().toISOString(),
         amount: Number(amount),
@@ -110,11 +106,9 @@ const Expenses = () => {
         comment,
         receiptUrl,
       });
-      if (result.success && result.data) {
-        setExpenses((prev) => [result.data!, ...prev]);
-      }
     }
 
+    queryClient.invalidateQueries({ queryKey: ["expenses", user.id] });
     setSaving(false);
     setDialogOpen(false);
     resetForm();
@@ -173,7 +167,6 @@ const Expenses = () => {
                 onChange={(e) => setComment(e.target.value)}
                 className="h-12 bg-secondary"
               />
-              {/* Show existing receipt or upload new */}
               {receiptUrl ? (
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground">Фото чека:</p>
@@ -189,10 +182,7 @@ const Expenses = () => {
                   </div>
                 </div>
               ) : (
-                <PhotoUpload
-                  label="Фото чека"
-                  onUpload={setReceiptUrl}
-                />
+                <PhotoUpload label="Фото чека" onUpload={setReceiptUrl} />
               )}
               <Button
                 onClick={handleSave}
@@ -219,20 +209,18 @@ const Expenses = () => {
             const editable = isToday(expenseDate) && expense.category !== "Пополнение";
             const isTopup = expense.category === "Пополнение";
             return (
-              <Card key={expense.id} className={cn("card-elevated", isTopup ? "border-l-4 border-l-green-500" : "border-l-4 border-l-destructive")}>
+              <Card key={expense.id} className={cn("card-elevated", isTopup ? "border-l-4 border-l-success" : "border-l-4 border-l-destructive")}>
                 <CardContent className="flex items-center justify-between p-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className={cn("text-sm font-semibold", isTopup ? "text-green-500" : "text-destructive")}>
+                      <span className={cn("text-sm font-semibold", isTopup ? "text-success" : "text-destructive")}>
                         {isTopup ? "+" : "−"}{expense.amount.toLocaleString("ru-RU")} {CURRENCY_SYMBOLS[expense.currency]}
                       </span>
                       <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
                         {expense.category}
                       </span>
                     </div>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {expense.comment}
-                    </p>
+                    <p className="truncate text-xs text-muted-foreground">{expense.comment}</p>
                     <p className="text-[10px] text-muted-foreground">
                       {format(expenseDate, "dd MMM, HH:mm", { locale: ru })}
                     </p>
@@ -246,12 +234,7 @@ const Expenses = () => {
                     )}
                   </div>
                   {editable && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEdit(expense)}
-                      className="text-muted-foreground hover:text-primary"
-                    >
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(expense)} className="text-muted-foreground hover:text-primary">
                       <Pencil className="h-4 w-4" />
                     </Button>
                   )}
@@ -262,12 +245,8 @@ const Expenses = () => {
         </div>
       )}
 
-      {/* Image zoom overlay */}
       {zoomImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
-          onClick={() => setZoomImage(null)}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm" onClick={() => setZoomImage(null)}>
           <img src={zoomImage} alt="Чек" className="max-h-[85vh] max-w-[90vw] rounded-lg border border-border object-contain shadow-lg" />
           <button onClick={() => setZoomImage(null)} className="absolute right-4 top-4 rounded-full bg-background/80 p-2 text-foreground hover:bg-background">
             <X className="h-5 w-5" />
