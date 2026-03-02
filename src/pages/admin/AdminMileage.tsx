@@ -114,11 +114,16 @@ const AdminMileage = () => {
             <Card key={r.id} className="border-border bg-card overflow-hidden">
               <CardContent className="p-3">
                 <div className="flex items-center gap-3">
-                  {r.driverPhoto ? (
-                    <img src={r.driverPhoto} alt={r.driverName} className="h-10 w-10 rounded-full object-cover" />
+                  {r.photoUrl ? (
+                    <img
+                      src={r.photoUrl}
+                      alt="Спидометр"
+                      onClick={() => setZoomImage(r.photoUrl)}
+                      className="h-10 w-10 shrink-0 cursor-pointer rounded border border-border object-cover transition-opacity hover:opacity-80"
+                    />
                   ) : (
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-bold text-foreground">
-                      {r.driverName.charAt(0)}
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-secondary text-xs text-muted-foreground">
+                      —
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
@@ -131,16 +136,6 @@ const AdminMileage = () => {
                     {r.km.toLocaleString("ru-RU")} км
                   </span>
                 </div>
-
-                {/* Small thumbnail like expenses */}
-                {r.photoUrl && (
-                  <img
-                    src={r.photoUrl}
-                    alt="Спидометр"
-                    onClick={() => setZoomImage(r.photoUrl)}
-                    className="mt-1 h-10 w-10 cursor-pointer rounded border border-border object-cover transition-opacity hover:opacity-80"
-                  />
-                )}
               </CardContent>
             </Card>
           ))}
