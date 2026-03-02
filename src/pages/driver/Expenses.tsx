@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Plus, Pencil } from "lucide-react";
+import { Loader2, Plus, Pencil, X } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, type Currency, type Expense } from "@/types";
 import { format, isToday, subDays, isAfter, startOfDay } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -18,6 +18,7 @@ const Expenses = () => {
   const { user } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -218,6 +219,14 @@ const Expenses = () => {
                     <p className="text-[10px] text-muted-foreground">
                       {format(expenseDate, "dd MMM, HH:mm", { locale: ru })}
                     </p>
+                    {expense.receiptUrl && (
+                      <img
+                        src={expense.receiptUrl}
+                        alt="Чек"
+                        onClick={() => setZoomImage(expense.receiptUrl)}
+                        className="mt-1 h-10 w-10 cursor-pointer rounded border border-border object-cover transition-opacity hover:opacity-80"
+                      />
+                    )}
                   </div>
                   {editable && (
                     <Button
@@ -233,6 +242,19 @@ const Expenses = () => {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* Image zoom overlay */}
+      {zoomImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+          onClick={() => setZoomImage(null)}
+        >
+          <img src={zoomImage} alt="Чек" className="max-h-[85vh] max-w-[90vw] rounded-lg border border-border object-contain shadow-lg" />
+          <button onClick={() => setZoomImage(null)} className="absolute right-4 top-4 rounded-full bg-background/80 p-2 text-foreground hover:bg-background">
+            <X className="h-5 w-5" />
+          </button>
         </div>
       )}
     </PageLayout>
