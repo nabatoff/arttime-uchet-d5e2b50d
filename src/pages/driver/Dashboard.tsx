@@ -46,8 +46,8 @@ const Dashboard = () => {
     enabled: !!user,
   });
 
-  useFadeIn(greetingRef);
-  useStaggerIn(cardsRef, ":scope > div", [balances]);
+  useFadeIn(greetingRef, 0, [!!balances]);
+  useStaggerIn(cardsRef, ":scope > div", [!!balances]);
 
   const today = new Date();
   const dateStr = format(today, "d MMMM, EEEE", { locale: ru });
