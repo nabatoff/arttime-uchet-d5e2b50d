@@ -440,13 +440,21 @@ const AdminExpenses = () => {
                         {expense.comment}
                       </p>
                     </div>
-                    <div className="ml-2 text-right">
+                    <div className="ml-2 flex flex-col items-end gap-1">
                       <p className="text-[10px] text-muted-foreground">
                         {format(expDate, "dd MMM", { locale: ru })}
                       </p>
                       <p className="text-[10px] text-muted-foreground">
                         {format(expDate, "HH:mm")}
                       </p>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary" onClick={() => openEditExpense(expense)}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(expense)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -455,6 +463,59 @@ const AdminExpenses = () => {
           })}
         </div>
       )}
+
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Редактировать запись</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Select value={editCategory} onValueChange={setEditCategory}>
+              <SelectTrigger className="bg-secondary border-border">
+                <SelectValue placeholder="Категория" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Пополнение">Пополнение</SelectItem>
+                {categories.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input placeholder="Сумма" type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="bg-secondary border-border" />
+            <div className="flex flex-wrap gap-2">
+              {ALL_CURRENCIES.map((c) => (
+                <button key={c} onClick={() => setEditCurrency(c)} className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition-colors", editCurrency === c ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")}>
+                  {CURRENCY_FLAGS[c]} {c}
+                </button>
+              ))}
+            </div>
+            <Input placeholder="Комментарий" value={editComment} onChange={(e) => setEditComment(e.target.value)} className="bg-secondary border-border" />
+            <Button className="w-full" onClick={handleEditSave} disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Сохранить
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Удалить запись?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget && `${deleteTarget.category} — ${Number(deleteTarget.amount).toLocaleString("ru-RU")} ${CURRENCY_SYMBOLS[deleteTarget.currency as Currency] || deleteTarget.currency}`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageLayout>
   );
 };
