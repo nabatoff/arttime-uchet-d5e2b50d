@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
+import { useStaggerIn, useFadeIn } from "@/hooks/useGsap";
+import gsap from "gsap";
 
 const CURRENCY_LABELS: Record<Currency, string> = {
   KZT: "Тенге",
@@ -31,6 +33,8 @@ const AdminDashboard = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
+  const greetingRef = useRef<HTMLDivElement>(null);
+  const cardsRef = useRef<HTMLDivElement>(null);
 
   const { data: drivers = [], isLoading } = useQuery({
     queryKey: ["drivers"],
@@ -43,6 +47,9 @@ const AdminDashboard = () => {
     },
   });
 
+  useFadeIn(greetingRef);
+  useStaggerIn(cardsRef, ":scope > div", [currentIndex, drivers]);
+
   const selectedDriver = drivers[currentIndex] || null;
 
   const getActiveCurrencies = (driver: User): Currency[] => {
@@ -53,13 +60,35 @@ const AdminDashboard = () => {
     return available.length > 0 ? available : ALL_CURRENCIES;
   };
 
+  const switchDriver = (newIndex: number) => {
+    if (!cardsRef.current) {
+      setCurrentIndex(newIndex);
+      return;
+    }
+    const dir = newIndex > currentIndex ? 1 : -1;
+    gsap.to(cardsRef.current, {
+      opacity: 0,
+      x: -30 * dir,
+      duration: 0.15,
+      ease: "power2.in",
+      onComplete: () => {
+        setCurrentIndex(newIndex);
+        gsap.fromTo(
+          cardsRef.current,
+          { opacity: 0, x: 30 * dir },
+          { opacity: 1, x: 0, duration: 0.25, ease: "power2.out" }
+        );
+      },
+    });
+  };
+
   const handleSwipe = () => {
     const diff = touchStartX.current - touchEndX.current;
     if (Math.abs(diff) < 50) return;
     if (diff > 0 && currentIndex < drivers.length - 1) {
-      setCurrentIndex((i) => i + 1);
+      switchDriver(currentIndex + 1);
     } else if (diff < 0 && currentIndex > 0) {
-      setCurrentIndex((i) => i - 1);
+      switchDriver(currentIndex - 1);
     }
   };
 
@@ -89,11 +118,10 @@ const AdminDashboard = () => {
   return (
     <PageLayout title="Мой баланс">
       <div
-        className="animate-fade-in"
         onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
         onTouchEnd={(e) => { touchEndX.current = e.changedTouches[0].clientX; handleSwipe(); }}
       >
-        <div className="mb-6">
+        <div ref={greetingRef} className="mb-6" style={{ opacity: 0 }}>
           <p className="text-xs text-muted-foreground capitalize">{dateStr}</p>
           <h2 className="text-xl font-bold text-foreground font-display">
             Привет, {currentUser?.name?.split(" ")[0] || "Админ"} 👋
@@ -101,19 +129,19 @@ const AdminDashboard = () => {
         </div>
 
         <div className="mb-4 flex items-center justify-between">
-          <Button variant="ghost" size="icon" disabled={currentIndex === 0} onClick={() => setCurrentIndex((i) => i - 1)} className="text-muted-foreground">
+          <Button variant="ghost" size="icon" disabled={currentIndex === 0} onClick={() => switchDriver(currentIndex - 1)} className="text-muted-foreground">
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div className="text-center">
             <p className="text-lg font-bold text-foreground">{selectedDriver?.name}</p>
             <p className="text-xs text-muted-foreground">{currentIndex + 1} / {drivers.length}</p>
           </div>
-          <Button variant="ghost" size="icon" disabled={currentIndex === drivers.length - 1} onClick={() => setCurrentIndex((i) => i + 1)} className="text-muted-foreground">
+          <Button variant="ghost" size="icon" disabled={currentIndex === drivers.length - 1} onClick={() => switchDriver(currentIndex + 1)} className="text-muted-foreground">
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
 
-        <div className="space-y-3">
+        <div ref={cardsRef} className="space-y-3">
           {activeCurrencies.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">
               Нет доступных валют. Настройте в разделе «Настройки».
@@ -123,7 +151,7 @@ const AdminDashboard = () => {
               const balance = selectedDriver?.balances?.[c] ?? 0;
               const isNegative = balance < 0;
               return (
-                <div key={c} className={cn("card-elevated rounded-2xl px-5 py-5", isNegative && "border-destructive/30")}>
+                <div key={c} className={cn("card-elevated rounded-2xl px-5 py-5", isNegative && "border-destructive/30")} style={{ opacity: 0 }}>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{CURRENCY_LABELS[c]}</p>
                   <div className="mt-2 flex items-baseline gap-2">
                     <p className={cn(
@@ -145,7 +173,7 @@ const AdminDashboard = () => {
             {drivers.map((_, i) => (
               <button
                 key={i}
-                onClick={() => setCurrentIndex(i)}
+                onClick={() => switchDriver(i)}
                 className={cn(
                   "h-2 rounded-full transition-all",
                   i === currentIndex ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30"
