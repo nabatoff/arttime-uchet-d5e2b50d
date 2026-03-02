@@ -12,6 +12,7 @@ import { Loader2, Plus, Pencil } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, type Currency, type Expense } from "@/types";
 import { format, isToday, subDays, isAfter, startOfDay } from "date-fns";
 import { ru } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 const Expenses = () => {
   const { user } = useAuth();
