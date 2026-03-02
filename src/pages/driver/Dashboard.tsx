@@ -89,7 +89,7 @@ const Dashboard = () => {
                   <div className="mt-2 flex items-baseline gap-2">
                     <p className={cn(
                       "text-3xl font-bold font-display",
-                      isNegative ? "text-destructive" : "text-foreground"
+                      isNegative ? "text-destructive" : "text-success"
                     )}>
                       {balance.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
