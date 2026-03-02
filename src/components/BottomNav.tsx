@@ -12,8 +12,8 @@ const driverTabs = [
 
 const adminTabs = [
   { path: "/admin", label: "Панель", icon: LayoutDashboard },
+  { path: "/admin/expenses", label: "Расходы", icon: Receipt },
   { path: "/admin/mileage", label: "Пробег", icon: Gauge },
-  { path: "/admin/drivers", label: "Водители", icon: Users },
   { path: "/admin/settings", label: "Настройки", icon: Settings },
   { path: "/profile", label: "Профиль", icon: UserCircle },
 ];
