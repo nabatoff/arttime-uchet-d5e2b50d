@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { api } from "@/services/api";
 import PageLayout from "@/components/PageLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,36 +10,30 @@ import { Loader2, X, CalendarIcon } from "lucide-react";
 import { format, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 import { ru } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import type { MileageReport } from "@/types";
-import type { User } from "@/types";
+import type { MileageReport, User } from "@/types";
+import { useQuery } from "@tanstack/react-query";
 
 const AdminMileage = () => {
-  const [reports, setReports] = useState<MileageReport[]>([]);
-  const [drivers, setDrivers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
-
-  // Filters
   const [selectedDriver, setSelectedDriver] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
 
-  useEffect(() => {
-    const load = async () => {
-      const [mileageResult, driversResult] = await Promise.all([
-        api.getMileage(),
-        api.getDrivers(),
-      ]);
-      if (mileageResult.success && mileageResult.data) {
-        setReports(mileageResult.data);
-      }
-      if (driversResult.success && driversResult.data) {
-        setDrivers(driversResult.data.filter((d) => d.role === "driver"));
-      }
-      setLoading(false);
-    };
-    load();
-  }, []);
+  const { data: reports = [], isLoading: loadingReports } = useQuery({
+    queryKey: ["mileage"],
+    queryFn: async () => {
+      const result = await api.getMileage();
+      return result.success && result.data ? result.data : [] as MileageReport[];
+    },
+  });
+
+  const { data: drivers = [] } = useQuery({
+    queryKey: ["drivers"],
+    queryFn: async () => {
+      const result = await api.getDrivers();
+      return result.success && result.data ? result.data.filter((d) => d.role === "driver") : [] as User[];
+    },
+  });
 
   const filtered = useMemo(() => {
     return reports.filter((r) => {
@@ -102,7 +96,7 @@ const AdminMileage = () => {
         )}
       </div>
 
-      {loading ? (
+      {loadingReports ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
@@ -115,26 +109,15 @@ const AdminMileage = () => {
               <CardContent className="p-3">
                 <div className="flex items-center gap-3">
                   {r.photoUrl ? (
-                    <img
-                      src={r.photoUrl}
-                      alt="Спидометр"
-                      onClick={() => setZoomImage(r.photoUrl)}
-                      className="h-10 w-10 shrink-0 cursor-pointer rounded border border-border object-cover transition-opacity hover:opacity-80"
-                    />
+                    <img src={r.photoUrl} alt="Спидометр" onClick={() => setZoomImage(r.photoUrl)} className="h-10 w-10 shrink-0 cursor-pointer rounded border border-border object-cover transition-opacity hover:opacity-80" />
                   ) : (
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-secondary text-xs text-muted-foreground">
-                      —
-                    </div>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-secondary text-xs text-muted-foreground">—</div>
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground">{r.driverName}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {format(new Date(r.date), "dd MMM yyyy, HH:mm", { locale: ru })}
-                    </p>
+                    <p className="text-[10px] text-muted-foreground">{format(new Date(r.date), "dd MMM yyyy, HH:mm", { locale: ru })}</p>
                   </div>
-                  <span className="text-lg font-bold text-primary shrink-0">
-                    {r.km.toLocaleString("ru-RU")} км
-                  </span>
+                  <span className="text-lg font-bold text-primary shrink-0">{r.km.toLocaleString("ru-RU")} км</span>
                 </div>
               </CardContent>
             </Card>

@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/services/api";
 import PageLayout from "@/components/PageLayout";
@@ -7,6 +6,7 @@ import { ALL_CURRENCIES, type Currency } from "@/types";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
 
 const CURRENCY_LABELS: Record<Currency, string> = {
   KZT: "Тенге",
@@ -26,38 +26,33 @@ const CURRENCY_SYMBOLS: Record<Currency, string> = {
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const [balances, setBalances] = useState<Record<Currency, number> | null>(null);
-  const [loading, setLoading] = useState(true);
 
   const activeCurrencies = user?.availableCurrencies
     ?.split(",")
     .map((c) => c.trim())
     .filter((c) => ALL_CURRENCIES.includes(c as Currency)) as Currency[] || [];
 
-  useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const result = await api.getBalance(user.id);
-      if (result.success && result.data) {
-        setBalances(result.data);
-      }
-      setLoading(false);
-    };
-    load();
-  }, [user]);
+  const { data: balances, isLoading } = useQuery({
+    queryKey: ["balance", user?.id],
+    queryFn: async () => {
+      const result = await api.getBalance(user!.id);
+      if (result.success && result.data) return result.data;
+      return {} as Record<Currency, number>;
+    },
+    enabled: !!user,
+  });
 
   const today = new Date();
   const dateStr = format(today, "d MMMM, EEEE", { locale: ru });
 
   return (
     <PageLayout title="Мой баланс">
-      {loading ? (
+      {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       ) : (
         <div className="animate-fade-in">
-          {/* Greeting */}
           <div className="mb-6">
             <p className="text-xs text-muted-foreground capitalize">{dateStr}</p>
             <h2 className="text-xl font-bold text-foreground font-display">
@@ -65,7 +60,6 @@ const Dashboard = () => {
             </h2>
           </div>
 
-          {/* Balance Cards */}
           <div className="space-y-3">
             {activeCurrencies.length === 0 && (
               <p className="py-10 text-center text-muted-foreground">
