@@ -16,8 +16,9 @@ const AdminSettings = () => {
     const load = async () => {
       const result = await api.getDrivers();
       if (result.success && result.data) {
-        setDrivers(result.data);
-        if (result.data.length > 0) setSelectedDriver(result.data[0]);
+        const onlyDrivers = result.data.filter(d => d.role.toLowerCase() !== "admin");
+        setDrivers(onlyDrivers);
+        if (onlyDrivers.length > 0) setSelectedDriver(onlyDrivers[0]);
       }
       setLoading(false);
     };
