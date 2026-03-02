@@ -1,9 +1,6 @@
 import { API_BASE_URL } from "@/config";
 import type { ApiResponse, AppData, Expense, MileageReport, User, Currency, UserRole } from "@/types";
 
-// Raw response from Google Apps Script may use different field names
-// We normalize it into our ApiResponse<T> format
-
 async function apiPost<T = unknown>(action: string, params: Record<string, unknown> | object = {}): Promise<ApiResponse<T>> {
   try {
     const response = await fetch(API_BASE_URL, {
@@ -13,13 +10,13 @@ async function apiPost<T = unknown>(action: string, params: Record<string, unkno
     });
     const raw = await response.json();
 
-    // Normalize: API may return { success, user } instead of { success, data }
+    // Normalize: API may return data under various keys
     if (raw.success && !raw.data) {
-      // Find the first non-"success" key as the data payload
       const dataKey = Object.keys(raw).find((k) => k !== "success");
       if (dataKey) {
         return { success: true, data: raw[dataKey] as T };
       }
+      return { success: true } as ApiResponse<T>;
     }
 
     return raw as ApiResponse<T>;
@@ -28,7 +25,7 @@ async function apiPost<T = unknown>(action: string, params: Record<string, unkno
   }
 }
 
-/** Normalize user object from API (role casing, field names) */
+/** Normalize user object from API */
 function normalizeUser(raw: Record<string, unknown>): User {
   return {
     id: String(raw.id ?? ""),
@@ -37,11 +34,12 @@ function normalizeUser(raw: Record<string, unknown>): User {
     role: (String(raw.role ?? "driver").toLowerCase()) as UserRole,
     photo: raw.photo as string | undefined,
     availableCurrencies: String(raw.availableCurrencies ?? raw.currencies ?? ""),
-    balances: (raw.balances as Record<Currency, number>) ?? ({} as Record<Currency, number>),
+    balances: (raw.balances as Record<Currency, number>) ?? {} as Record<Currency, number>,
   };
 }
 
 export const api = {
+  // Login — returns { success, user }
   login: async (login: string, password: string): Promise<ApiResponse<User>> => {
     const result = await apiPost<Record<string, unknown>>("login", { login, password });
     if (result.success && result.data) {
@@ -50,36 +48,68 @@ export const api = {
     return { success: false, error: result.error || "Неверный логин или пароль" };
   },
 
+  // Verify password on app launch
   verifyPassword: (login: string, password: string) =>
     apiPost<{ valid: boolean }>("verifyPassword", { login, password }),
 
-  getAppData: () =>
-    apiPost<AppData>("getAppData"),
+  // Categories — returns { success, categories }
+  getAppData: async (): Promise<ApiResponse<AppData>> => {
+    const result = await apiPost<string[]>("getAppData");
+    if (result.success && result.data) {
+      return { success: true, data: { categories: result.data as string[] } };
+    }
+    return { success: false, error: "Ошибка загрузки данных" };
+  },
 
+  // Balance — returns { success, balances }
   getBalance: (driverId: string) =>
-    apiPost<Record<Currency, number>>("getBalance", { driverId }),
+    apiPost<Record<Currency, number>>("getBalance", { userId: driverId }),
 
-  getExpenses: (driverId: string) =>
-    apiPost<Expense[]>("getExpenses", { driverId }),
+  // Expenses — uses userId and role
+  getExpenses: (driverId: string, role?: string) =>
+    apiPost<Expense[]>("getExpenses", { userId: driverId, role: role || "Driver" }),
 
+  // Save expense — action is "saveExpense"
   addExpense: (expense: Omit<Expense, "id">) =>
-    apiPost<Expense>("addExpense", expense),
+    apiPost<Expense>("saveExpense", {
+      userId: expense.driverId,
+      category: expense.category,
+      amount: expense.amount,
+      currency: expense.currency,
+      comment: expense.comment,
+      receiptUrl: expense.receiptUrl,
+    }),
 
+  // Update expense
   updateExpense: (expense: Expense) =>
     apiPost<Expense>("updateExpense", expense),
 
+  // Save mileage — action is "saveMileage"
   addMileage: (report: Omit<MileageReport, "id">) =>
-    apiPost<MileageReport>("addMileage", report),
+    apiPost<MileageReport>("saveMileage", {
+      userId: report.driverId,
+      km: report.km,
+      photoUrl: report.photoUrl,
+    }),
 
+  // Get mileage reports
   getMileage: (driverId?: string) =>
-    apiPost<MileageReport[]>("getMileage", { driverId }),
+    apiPost<MileageReport[]>("getMileage", { userId: driverId }),
 
-  getDrivers: () =>
-    apiPost<User[]>("getDrivers"),
+  // Get all drivers/users
+  getDrivers: async (): Promise<ApiResponse<User[]>> => {
+    const result = await apiPost<Record<string, unknown>[]>("getDrivers");
+    if (result.success && result.data) {
+      return { success: true, data: result.data.map(normalizeUser) };
+    }
+    return { success: false, error: "Ошибка загрузки" };
+  },
 
-  updateDriverCurrencies: (driverId: string, currencies: string) =>
-    apiPost("updateDriverCurrencies", { driverId, currencies }),
+  // Update currencies — action is "updateCurrencies"
+  updateDriverCurrencies: (driverId: string, currencies: string, adminRole: string = "Admin") =>
+    apiPost("updateCurrencies", { targetUserId: driverId, currenciesString: currencies, adminRole }),
 
-  updateBalance: (driverId: string, currency: Currency, amount: number) =>
-    apiPost("updateBalance", { driverId, currency, amount }),
+  // Update balance — action is "updateBalance"
+  updateBalance: (driverId: string, currency: Currency, amount: number, adminRole: string = "Admin") =>
+    apiPost("updateBalance", { targetUserId: driverId, currency, newAmount: amount, adminRole }),
 };
