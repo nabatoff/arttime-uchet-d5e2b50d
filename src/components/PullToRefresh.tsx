@@ -34,6 +34,8 @@ const PullToRefresh = ({ onRefresh, children }: PullToRefreshProps) => {
   const handleTouchEnd = useCallback(async () => {
     if (refreshing) return;
     if (pullDistance >= THRESHOLD) {
+      // Haptic feedback
+      if (navigator.vibrate) navigator.vibrate(20);
       setRefreshing(true);
       setPullDistance(THRESHOLD * 0.6);
       try {

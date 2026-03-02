@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { UserCircle, Sun, Moon } from "lucide-react";
+import { UserCircle, Sun, Moon, RefreshCw } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useQueryClient } from "@tanstack/react-query";
+import { useIsMobile } from "@/hooks/use-mobile";
 import BottomNav from "./BottomNav";
 import PullToRefresh from "./PullToRefresh";
 import logo from "@/assets/logo.png";
+import { cn } from "@/lib/utils";
 
 interface PageLayoutProps {
   children: React.ReactNode;
@@ -15,12 +18,26 @@ const PageLayout = ({ children, title }: PageLayoutProps) => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+  const [desktopRefreshing, setDesktopRefreshing] = useState(false);
 
   const handleRefresh = async () => {
     await queryClient.invalidateQueries();
-    // Small delay so spinner is visible
     await new Promise((r) => setTimeout(r, 400));
   };
+
+  const handleDesktopRefresh = async () => {
+    if (desktopRefreshing) return;
+    setDesktopRefreshing(true);
+    await handleRefresh();
+    setDesktopRefreshing(false);
+  };
+
+  const content = isMobile ? (
+    <PullToRefresh onRefresh={handleRefresh}>{children}</PullToRefresh>
+  ) : (
+    children
+  );
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -33,6 +50,16 @@ const PageLayout = ({ children, title }: PageLayoutProps) => {
               <h1 className="text-sm font-semibold text-foreground">{title}</h1>
             </div>
             <div className="flex items-center gap-1">
+              {!isMobile && (
+                <button
+                  onClick={handleDesktopRefresh}
+                  disabled={desktopRefreshing}
+                  className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
+                  title="Обновить"
+                >
+                  <RefreshCw className={cn("h-5 w-5", desktopRefreshing && "animate-spin")} />
+                </button>
+              )}
               <button
                 onClick={toggleTheme}
                 className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
@@ -49,11 +76,7 @@ const PageLayout = ({ children, title }: PageLayoutProps) => {
           </div>
         </header>
       )}
-      <main className="flex-1 px-4 pb-20 pt-4">
-        <PullToRefresh onRefresh={handleRefresh}>
-          {children}
-        </PullToRefresh>
-      </main>
+      <main className="flex-1 px-4 pb-20 pt-4">{content}</main>
       <BottomNav />
     </div>
   );
