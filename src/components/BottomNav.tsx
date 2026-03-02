@@ -1,13 +1,8 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Wallet, Receipt, Gauge, UserCircle, LayoutDashboard, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMileageGate } from "@/contexts/MileageGateContext";
 import { cn } from "@/lib/utils";
-
-const driverTabs = [
-  { path: "/dashboard", label: "Мой баланс", icon: Wallet },
-  { path: "/expenses", label: "Расходы", icon: Receipt },
-  { path: "/mileage", label: "Пробег", icon: Gauge },
-];
 
 const adminTabs = [
   { path: "/admin", label: "Мой баланс", icon: LayoutDashboard },
@@ -18,10 +13,22 @@ const adminTabs = [
 
 const BottomNav = () => {
   const { user } = useAuth();
+  const { mileageSubmittedToday } = useMileageGate();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const tabs = user?.role === "admin" ? adminTabs : driverTabs;
+  const isAdmin = user?.role === "admin";
+
+  const tabs = isAdmin
+    ? adminTabs
+    : mileageSubmittedToday
+      ? [
+          { path: "/dashboard", label: "Мой баланс", icon: Wallet },
+          { path: "/expenses", label: "Расходы", icon: Receipt },
+        ]
+      : [
+          { path: "/mileage", label: "Пробег", icon: Gauge },
+        ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-lg">
