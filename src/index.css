@@ -6,6 +6,50 @@
 
 @layer base {
   :root {
+    --background: 0 0% 97%;
+    --foreground: 0 0% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 0 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 93%;
+    --secondary-foreground: 0 0% 10%;
+
+    --muted: 0 0% 90%;
+    --muted-foreground: 0 0% 45%;
+
+    --accent: 0 100% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 0 100% 50%;
+
+    --radius: 1rem;
+
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
+
+    /* Custom tokens */
+    --glow-primary: 0 100% 50%;
+    --surface-glass: 0 0% 0% / 0.03;
+    --surface-glass-border: 0 0% 0% / 0.08;
+    --card-shadow: 0 1px 3px 0 hsl(0 0% 0% / 0.06), 0 1px 2px -1px hsl(0 0% 0% / 0.06);
+  }
+
+  .dark {
     --background: 0 0% 3%;
     --foreground: 0 0% 95%;
 
@@ -34,8 +78,6 @@
     --input: 0 0% 14%;
     --ring: 0 100% 50%;
 
-    --radius: 0.75rem;
-
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
 
@@ -46,6 +88,7 @@
     --glow-primary: 0 100% 50%;
     --surface-glass: 0 0% 100% / 0.04;
     --surface-glass-border: 0 0% 100% / 0.08;
+    --card-shadow: 0 2px 12px -2px hsl(0 0% 0% / 0.5), 0 0 0 1px hsl(0 0% 100% / 0.03);
   }
 }
 
@@ -82,8 +125,8 @@
   .glass-header {
     background: linear-gradient(
       to bottom,
-      hsl(0 0% 5% / 0.95),
-      hsl(0 0% 5% / 0.85)
+      hsl(var(--background) / 0.95),
+      hsl(var(--background) / 0.85)
     );
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -92,8 +135,8 @@
   .glass-nav {
     background: linear-gradient(
       to top,
-      hsl(0 0% 5% / 0.98),
-      hsl(0 0% 5% / 0.88)
+      hsl(var(--background) / 0.98),
+      hsl(var(--background) / 0.88)
     );
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -113,8 +156,7 @@
 
   .card-elevated {
     @apply bg-card border border-border rounded-xl;
-    box-shadow: 0 2px 12px -2px hsl(0 0% 0% / 0.5),
-                0 0 0 1px hsl(0 0% 100% / 0.03);
+    box-shadow: var(--card-shadow);
   }
 
   .font-display {

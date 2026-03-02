@@ -10,11 +10,19 @@ import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 
 const CURRENCY_LABELS: Record<Currency, string> = {
-  KZT: "БАЛАНС В ТЕНГЕ:",
-  RUB: "БАЛАНС В РУБЛЯХ:",
-  UZS: "БАЛАНС В СУМАХ:",
-  CNY: "БАЛАНС В ЮАНЯХ:",
-  EUR: "БАЛАНС В ЕВРО:",
+  KZT: "Тенге",
+  RUB: "Рубли",
+  UZS: "Сумы",
+  CNY: "Юани",
+  EUR: "Евро",
+};
+
+const CURRENCY_SYMBOLS: Record<Currency, string> = {
+  KZT: "₸",
+  RUB: "₽",
+  UZS: "сўм",
+  CNY: "¥",
+  EUR: "€",
 };
 
 const AdminDashboard = () => {
@@ -60,7 +68,7 @@ const AdminDashboard = () => {
   };
 
   const today = new Date();
-  const dateStr = format(today, "EEEE, d MMMM yyyy 'г.'", { locale: ru });
+  const dateStr = format(today, "d MMMM, EEEE", { locale: ru });
 
   if (loading) {
     return (
@@ -90,13 +98,11 @@ const AdminDashboard = () => {
         onTouchEnd={(e) => { touchEndX.current = e.changedTouches[0].clientX; handleSwipe(); }}
       >
         {/* Greeting */}
-        <div className="mb-6 rounded-xl bg-primary px-5 py-4">
-          <h2 className="text-xl font-bold text-primary-foreground">
-            Здравствуйте, {currentUser?.name || "Админ"}!
+        <div className="mb-6">
+          <p className="text-xs text-muted-foreground capitalize">{dateStr}</p>
+          <h2 className="text-xl font-bold text-foreground font-display">
+            Привет, {currentUser?.name?.split(" ")[0] || "Админ"} 👋
           </h2>
-          <p className="mt-1 text-sm capitalize text-primary-foreground/80">
-            Сегодня {dateStr}
-          </p>
         </div>
 
         {/* Driver selector */}
@@ -141,18 +147,22 @@ const AdminDashboard = () => {
                 <div
                   key={c}
                   className={cn(
-                    "w-full rounded-xl px-5 py-4 text-center",
-                    isNegative
-                      ? "bg-gradient-to-r from-red-600 to-red-500"
-                      : "bg-gradient-to-r from-green-600 to-green-500"
+                    "card-elevated rounded-2xl px-5 py-5",
+                    isNegative && "border-destructive/30"
                   )}
                 >
-                  <p className="text-xs font-semibold uppercase tracking-wider text-white/90">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     {CURRENCY_LABELS[c]}
                   </p>
-                  <p className="mt-1 text-3xl font-bold text-white">
-                    {balance.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <p className={cn(
+                      "text-3xl font-bold font-display",
+                      isNegative ? "text-destructive" : "text-foreground"
+                    )}>
+                      {balance.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <span className="text-sm text-muted-foreground">{CURRENCY_SYMBOLS[c]}</span>
+                  </div>
                 </div>
               );
             })

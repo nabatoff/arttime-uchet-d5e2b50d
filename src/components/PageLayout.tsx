@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { UserCircle } from "lucide-react";
+import { UserCircle, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
 import BottomNav from "./BottomNav";
 import logo from "@/assets/logo.png";
 
@@ -10,6 +11,7 @@ interface PageLayoutProps {
 
 const PageLayout = ({ children, title }: PageLayoutProps) => {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -21,12 +23,20 @@ const PageLayout = ({ children, title }: PageLayoutProps) => {
               <div className="h-5 w-px bg-border/60" />
               <h1 className="text-sm font-semibold text-foreground">{title}</h1>
             </div>
-            <button
-              onClick={() => navigate("/profile")}
-              className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
-            >
-              <UserCircle className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={toggleTheme}
+                className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
+              >
+                {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </button>
+              <button
+                onClick={() => navigate("/profile")}
+                className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
+              >
+                <UserCircle className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         </header>
       )}

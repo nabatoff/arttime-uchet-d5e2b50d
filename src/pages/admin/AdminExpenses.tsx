@@ -430,7 +430,7 @@ const AdminExpenses = () => {
             const expDate = new Date(expense.date);
             const isTopup = expense.category === "Пополнение";
             return (
-              <Card key={expense.id} className={cn("border-border bg-card", isTopup ? "border-l-4 border-l-green-500" : "border-l-4 border-l-destructive")}>
+              <Card key={expense.id} className={cn("card-elevated", isTopup ? "border-l-4 border-l-green-500" : "border-l-4 border-l-destructive")}>
                 <CardContent className="p-3">
                   <div className="flex items-start justify-between">
                     <div className="min-w-0 flex-1">

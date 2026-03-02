@@ -219,7 +219,7 @@ const Expenses = () => {
             const editable = isToday(expenseDate) && expense.category !== "Пополнение";
             const isTopup = expense.category === "Пополнение";
             return (
-              <Card key={expense.id} className={cn("border-border bg-card", isTopup ? "border-l-4 border-l-green-500" : "border-l-4 border-l-destructive")}>
+              <Card key={expense.id} className={cn("card-elevated", isTopup ? "border-l-4 border-l-green-500" : "border-l-4 border-l-destructive")}>
                 <CardContent className="flex items-center justify-between p-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
