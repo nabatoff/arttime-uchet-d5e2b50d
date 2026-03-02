@@ -48,8 +48,11 @@ const BottomNav = () => {
               {isActive && (
                 <span className="absolute -top-1.5 h-0.5 w-6 rounded-full bg-primary" />
               )}
-              <Icon className={cn("h-5 w-5", isActive && "drop-shadow-[0_0_6px_hsl(var(--primary)/0.5)]")} />
-              <span className="text-[10px] font-medium">{tab.label}</span>
+              <Icon className={cn("h-6 w-6", isActive && "drop-shadow-[0_0_6px_hsl(var(--primary)/0.5)]")} />
+              <span className="text-[9px] font-medium leading-none">{tab.label}</span>
+              {isActive && (
+                <span className="absolute -bottom-0.5 h-1 w-1 rounded-full bg-primary" />
+              )}
             </button>
           );
         })}
