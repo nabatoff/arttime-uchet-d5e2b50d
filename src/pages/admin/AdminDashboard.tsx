@@ -121,7 +121,7 @@ const AdminDashboard = () => {
         onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
         onTouchEnd={(e) => { touchEndX.current = e.changedTouches[0].clientX; handleSwipe(); }}
       >
-        <div ref={greetingRef} className="mb-6" style={{ opacity: 0 }}>
+        <div ref={greetingRef} className="mb-6">
           <p className="text-xs text-muted-foreground capitalize">{dateStr}</p>
           <h2 className="text-xl font-bold text-foreground font-display">
             Привет, {currentUser?.name?.split(" ")[0] || "Админ"} 👋
@@ -151,7 +151,7 @@ const AdminDashboard = () => {
               const balance = selectedDriver?.balances?.[c] ?? 0;
               const isNegative = balance < 0;
               return (
-                <div key={c} className={cn("card-elevated rounded-2xl px-5 py-5", isNegative && "border-destructive/30")} style={{ opacity: 0 }}>
+                <div key={c} className={cn("card-elevated rounded-2xl px-5 py-5", isNegative && "border-destructive/30")}>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{CURRENCY_LABELS[c]}</p>
                   <div className="mt-2 flex items-baseline gap-2">
                     <p className={cn(
