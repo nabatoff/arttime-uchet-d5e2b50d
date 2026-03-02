@@ -13,7 +13,7 @@ const AdminDrivers = () => {
     const load = async () => {
       const result = await api.getDrivers();
       if (result.success && result.data) {
-        setDrivers(result.data);
+        setDrivers(result.data.filter(d => d.role.toLowerCase() !== "admin"));
       }
       setLoading(false);
     };
