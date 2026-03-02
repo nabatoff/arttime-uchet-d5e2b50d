@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Wallet, Receipt, Gauge, UserCircle, LayoutDashboard, Users } from "lucide-react";
+import { Wallet, Receipt, Gauge, UserCircle, LayoutDashboard, Users, Settings } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,7 @@ const adminTabs = [
   { path: "/admin", label: "Панель", icon: LayoutDashboard },
   { path: "/admin/mileage", label: "Пробег", icon: Gauge },
   { path: "/admin/drivers", label: "Водители", icon: Users },
+  { path: "/admin/settings", label: "Настройки", icon: Settings },
   { path: "/profile", label: "Профиль", icon: UserCircle },
 ];
 
