@@ -6,7 +6,7 @@ import PhotoUpload from "@/components/PhotoUpload";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Filter, X, Plus, CalendarIcon, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Filter, X, Plus, CalendarIcon, Pencil, Trash2, Download } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User } from "@/types";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { ru } from "date-fns/locale";
