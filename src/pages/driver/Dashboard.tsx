@@ -60,7 +60,7 @@ const Dashboard = () => {
         </div>
       ) : (
         <div>
-          <div ref={greetingRef} className="mb-6" style={{ opacity: 0 }}>
+          <div ref={greetingRef} className="mb-6">
             <p className="text-xs text-muted-foreground capitalize">{dateStr}</p>
             <h2 className="text-xl font-bold text-foreground font-display">
               Привет, {user?.name?.split(" ")[0] || "Водитель"} 👋
@@ -83,7 +83,6 @@ const Dashboard = () => {
                     "card-elevated rounded-2xl px-5 py-5",
                     isNegative && "border-destructive/30"
                   )}
-                  style={{ opacity: 0 }}
                 >
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     {CURRENCY_LABELS[currency]}
