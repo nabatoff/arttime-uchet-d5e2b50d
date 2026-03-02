@@ -22,6 +22,7 @@ import { useScrollReveal } from "@/hooks/useGsap";
 const AdminExpenses = () => {
   const queryClient = useQueryClient();
   const listRef = useRef<HTMLDivElement>(null);
+  useScrollReveal(listRef);
   const [showFilters, setShowFilters] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [addType, setAddType] = useState<"expense" | "topup">("expense");
