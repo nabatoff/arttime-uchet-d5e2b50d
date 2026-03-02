@@ -39,6 +39,7 @@ const AdminExpenses = () => {
   const [editCurrency, setEditCurrency] = useState<Currency>("KZT");
   const [editComment, setEditComment] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Filters
@@ -447,6 +448,14 @@ const AdminExpenses = () => {
                       <p className="truncate text-xs text-muted-foreground">
                         {expense.comment}
                       </p>
+                      {expense.receiptUrl && (
+                        <img
+                          src={expense.receiptUrl}
+                          alt="Чек"
+                          onClick={() => setZoomImage(expense.receiptUrl)}
+                          className="mt-1 h-10 w-10 cursor-pointer rounded border border-border object-cover transition-opacity hover:opacity-80"
+                        />
+                      )}
                     </div>
                     <div className="ml-2 flex flex-col items-end gap-1">
                       <p className="text-[10px] text-muted-foreground">
