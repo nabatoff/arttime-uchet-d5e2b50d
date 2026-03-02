@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "@/services/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PageLayout from "@/components/PageLayout";
 import PhotoUpload from "@/components/PhotoUpload";
 import { Card, CardContent } from "@/components/ui/card";
