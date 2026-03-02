@@ -15,6 +15,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminMileage from "./pages/admin/AdminMileage";
 import AdminDrivers from "./pages/admin/AdminDrivers";
 import AdminExpenses from "./pages/admin/AdminExpenses";
+import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -43,6 +44,7 @@ function AppRoutes() {
   if (!isAuthenticated) {
     return (
       <Routes>
+        <Route path="/install" element={<Install />} />
         <Route path="*" element={<Login />} />
       </Routes>
     );
@@ -56,6 +58,7 @@ function AppRoutes() {
         <Route path="/admin/mileage" element={<AdminMileage />} />
         <Route path="/admin/drivers" element={<AdminDrivers />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/install" element={<Install />} />
         <Route path="/" element={<Navigate to="/admin" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
@@ -68,6 +71,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/mileage" element={<Mileage />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/install" element={<Install />} />
         <Route path="*" element={<Navigate to="/mileage" replace />} />
       </Routes>
     );
@@ -78,6 +82,7 @@ function AppRoutes() {
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/expenses" element={<Expenses />} />
       <Route path="/profile" element={<Profile />} />
+      <Route path="/install" element={<Install />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
