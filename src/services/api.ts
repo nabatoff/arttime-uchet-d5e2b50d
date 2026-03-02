@@ -37,7 +37,7 @@ function normalizeUser(raw: Record<string, unknown>): User {
     role: (String(raw.role ?? "driver").toLowerCase()) as UserRole,
     photo: raw.photo as string | undefined,
     availableCurrencies: String(raw.availableCurrencies ?? raw.currencies ?? ""),
-    balances: (raw.balances as Record<Currency, number>) ?? {},
+    balances: (raw.balances as Record<Currency, number>) ?? ({} as Record<Currency, number>),
   };
 }
 
