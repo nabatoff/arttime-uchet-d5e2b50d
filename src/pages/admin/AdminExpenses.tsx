@@ -101,6 +101,16 @@ const AdminExpenses = () => {
       const driver = drivers.find((d) => String(d.id) === addDriver);
       const currentBalance = driver?.balances?.[addCurrency] ?? 0;
       await api.updateBalance(addDriver, addCurrency, currentBalance + Number(addAmount));
+      // Save topup as expense record for history
+      await api.addExpense({
+        driverId: addDriver,
+        date: new Date().toISOString(),
+        category: "Пополнение",
+        amount: Number(addAmount),
+        currency: addCurrency,
+        comment: addComment || "Пополнение баланса",
+        receiptUrl: "",
+      });
       toast({ title: "Баланс пополнен" });
     } else {
       // Add expense
