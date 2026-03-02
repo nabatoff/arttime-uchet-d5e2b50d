@@ -4,7 +4,7 @@ import PageLayout from "@/components/PageLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Filter, X, Plus, CalendarIcon } from "lucide-react";
+import { Loader2, Filter, X, Plus, CalendarIcon, Pencil, Trash2 } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User } from "@/types";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
 const AdminExpenses = () => {
@@ -29,6 +30,13 @@ const AdminExpenses = () => {
   const [addCurrency, setAddCurrency] = useState<Currency>("KZT");
   const [addComment, setAddComment] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editExpense, setEditExpense] = useState<Expense | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editCategory, setEditCategory] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editCurrency, setEditCurrency] = useState<Currency>("KZT");
+  const [editComment, setEditComment] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
   const { toast } = useToast();
 
   // Filters
@@ -89,6 +97,52 @@ const AdminExpenses = () => {
 
   const hasActiveFilters = filterDriver !== "all" || filterCategory !== "all" || dateFrom || dateTo;
 
+  const reloadData = async () => {
+    const [expResult, driversResult] = await Promise.all([
+      api.getExpenses("", "Admin"),
+      api.getDrivers(),
+    ]);
+    if (expResult.success && expResult.data) setAllExpenses(expResult.data);
+    if (driversResult.success && driversResult.data) {
+      setDrivers(driversResult.data.filter((d) => d.role.toLowerCase() !== "admin"));
+    }
+  };
+
+  const openEditExpense = (expense: Expense) => {
+    setEditExpense(expense);
+    setEditCategory(expense.category);
+    setEditAmount(String(expense.amount));
+    setEditCurrency(expense.currency);
+    setEditComment(expense.comment);
+    setEditOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editExpense) return;
+    setSaving(true);
+    await api.updateExpense({
+      ...editExpense,
+      category: editCategory,
+      amount: Number(editAmount),
+      currency: editCurrency,
+      comment: editComment,
+    });
+    toast({ title: "Запись обновлена" });
+    setSaving(false);
+    setEditOpen(false);
+    await reloadData();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setSaving(true);
+    await api.deleteExpense(deleteTarget.id);
+    toast({ title: "Запись удалена" });
+    setSaving(false);
+    setDeleteTarget(null);
+    await reloadData();
+  };
+
   const handleAddExpense = async () => {
     if (!addDriver || !addAmount) {
       toast({ title: "Выберите водителя и сумму", variant: "destructive" });
@@ -131,14 +185,7 @@ const AdminExpenses = () => {
     setAddComment("");
     setAddCategory("");
     setSaving(false);
-
-    // Reload
-    const expResult = await api.getExpenses("", "Admin");
-    if (expResult.success && expResult.data) setAllExpenses(expResult.data);
-    const driversResult = await api.getDrivers();
-    if (driversResult.success && driversResult.data) {
-      setDrivers(driversResult.data.filter((d) => d.role.toLowerCase() !== "admin"));
-    }
+    await reloadData();
   };
 
   return (
@@ -393,13 +440,21 @@ const AdminExpenses = () => {
                         {expense.comment}
                       </p>
                     </div>
-                    <div className="ml-2 text-right">
+                    <div className="ml-2 flex flex-col items-end gap-1">
                       <p className="text-[10px] text-muted-foreground">
                         {format(expDate, "dd MMM", { locale: ru })}
                       </p>
                       <p className="text-[10px] text-muted-foreground">
                         {format(expDate, "HH:mm")}
                       </p>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary" onClick={() => openEditExpense(expense)}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(expense)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -408,6 +463,59 @@ const AdminExpenses = () => {
           })}
         </div>
       )}
+
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Редактировать запись</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Select value={editCategory} onValueChange={setEditCategory}>
+              <SelectTrigger className="bg-secondary border-border">
+                <SelectValue placeholder="Категория" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Пополнение">Пополнение</SelectItem>
+                {categories.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input placeholder="Сумма" type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="bg-secondary border-border" />
+            <div className="flex flex-wrap gap-2">
+              {ALL_CURRENCIES.map((c) => (
+                <button key={c} onClick={() => setEditCurrency(c)} className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition-colors", editCurrency === c ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")}>
+                  {CURRENCY_FLAGS[c]} {c}
+                </button>
+              ))}
+            </div>
+            <Input placeholder="Комментарий" value={editComment} onChange={(e) => setEditComment(e.target.value)} className="bg-secondary border-border" />
+            <Button className="w-full" onClick={handleEditSave} disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Сохранить
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Удалить запись?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget && `${deleteTarget.category} — ${Number(deleteTarget.amount).toLocaleString("ru-RU")} ${CURRENCY_SYMBOLS[deleteTarget.currency as Currency] || deleteTarget.currency}`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageLayout>
   );
 };
