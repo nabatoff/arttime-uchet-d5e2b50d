@@ -13,7 +13,7 @@ import { ALL_CURRENCIES, CURRENCY_SYMBOLS, type Currency, type Expense } from "@
 import { format, isToday, subDays, isAfter, startOfDay } from "date-fns";
 import { ru } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useScrollReveal } from "@/hooks/useGsap";
 
 const Expenses = () => {
