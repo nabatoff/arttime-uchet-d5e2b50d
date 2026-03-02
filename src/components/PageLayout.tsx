@@ -77,7 +77,9 @@ const PageLayout = ({ children, title }: PageLayoutProps) => {
           </div>
         </header>
       )}
-      <main className="flex-1 px-4 pb-20 pt-4">{content}</main>
+      <main className="flex-1 px-4 pb-20 pt-4 overflow-hidden">
+        <PageTransition>{content}</PageTransition>
+      </main>
       <BottomNav />
     </div>
   );
