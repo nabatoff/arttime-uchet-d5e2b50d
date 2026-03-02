@@ -1,7 +1,7 @@
 import { API_BASE_URL } from "@/config";
 import type { ApiResponse, AppData, Expense, MileageReport, User, Currency } from "@/types";
 
-async function apiPost<T = unknown>(action: string, params: Record<string, unknown> = {}): Promise<ApiResponse<T>> {
+async function apiPost<T = unknown>(action: string, params: Record<string, unknown> | object = {}): Promise<ApiResponse<T>> {
   try {
     const response = await fetch(API_BASE_URL, {
       method: "POST",
