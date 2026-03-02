@@ -45,7 +45,7 @@ const Install = () => {
   if (isStandalone) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-        <CheckCircle2 className="h-16 w-16 text-green-500" />
+        <CheckCircle2 className="h-16 w-16 text-[hsl(var(--success))]" />
         <h1 className="text-xl font-bold text-foreground">Приложение уже установлено</h1>
         <p className="text-sm text-muted-foreground">Вы используете ArtTime как приложение.</p>
       </div>
@@ -55,7 +55,7 @@ const Install = () => {
   if (installed) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-        <CheckCircle2 className="h-16 w-16 text-green-500" />
+        <CheckCircle2 className="h-16 w-16 text-[hsl(var(--success))]" />
         <h1 className="text-xl font-bold text-foreground">Готово!</h1>
         <p className="text-sm text-muted-foreground">Приложение установлено на ваш экран.</p>
       </div>
