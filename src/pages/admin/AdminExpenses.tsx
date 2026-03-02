@@ -39,6 +39,7 @@ const AdminExpenses = () => {
   const [editCurrency, setEditCurrency] = useState<Currency>("KZT");
   const [editComment, setEditComment] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Filters
@@ -447,6 +448,14 @@ const AdminExpenses = () => {
                       <p className="truncate text-xs text-muted-foreground">
                         {expense.comment}
                       </p>
+                      {expense.receiptUrl && (
+                        <img
+                          src={expense.receiptUrl}
+                          alt="Чек"
+                          onClick={() => setZoomImage(expense.receiptUrl)}
+                          className="mt-1 h-10 w-10 cursor-pointer rounded border border-border object-cover transition-opacity hover:opacity-80"
+                        />
+                      )}
                     </div>
                     <div className="ml-2 flex flex-col items-end gap-1">
                       <p className="text-[10px] text-muted-foreground">
@@ -524,6 +533,26 @@ const AdminExpenses = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Image zoom overlay */}
+      {zoomImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+          onClick={() => setZoomImage(null)}
+        >
+          <img
+            src={zoomImage}
+            alt="Чек"
+            className="max-h-[85vh] max-w-[90vw] rounded-lg border border-border object-contain shadow-lg"
+          />
+          <button
+            onClick={() => setZoomImage(null)}
+            className="absolute right-4 top-4 rounded-full bg-background/80 p-2 text-foreground hover:bg-background"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
     </PageLayout>
   );
 };
