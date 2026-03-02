@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Wallet, Receipt, Gauge, UserCircle, LayoutDashboard, Users, Settings } from "lucide-react";
+import { Wallet, Receipt, Gauge, UserCircle, LayoutDashboard, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
