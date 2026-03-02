@@ -189,6 +189,23 @@ const AdminExpenses = () => {
     await reloadData();
   };
 
+  const exportToExcel = () => {
+    import("xlsx").then((XLSX) => {
+      const rows = filtered.map((e) => ({
+        "Дата": format(new Date(e.date), "dd.MM.yyyy HH:mm", { locale: ru }),
+        "Водитель": getDriverName(e.driverId),
+        "Категория": e.category,
+        "Сумма": e.amount,
+        "Валюта": e.currency,
+        "Комментарий": e.comment,
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Расходы");
+      XLSX.writeFile(wb, `Расходы_${format(new Date(), "dd-MM-yyyy")}.xlsx`);
+    });
+  };
+
   return (
     <PageLayout title="Расходы">
       {/* Top actions */}
@@ -213,6 +230,10 @@ const AdminExpenses = () => {
           </Button>
         )}
         <div className="flex-1" />
+        <Button variant="secondary" size="sm" onClick={exportToExcel} className="gap-1.5" disabled={filtered.length === 0}>
+          <Download className="h-4 w-4" />
+          Excel
+        </Button>
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-1.5">
