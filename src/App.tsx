@@ -13,6 +13,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminMileage from "./pages/admin/AdminMileage";
 import AdminDrivers from "./pages/admin/AdminDrivers";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminExpenses from "./pages/admin/AdminExpenses";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -41,6 +42,7 @@ function AppRoutes() {
     return (
       <Routes>
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/expenses" element={<AdminExpenses />} />
         <Route path="/admin/mileage" element={<AdminMileage />} />
         <Route path="/admin/drivers" element={<AdminDrivers />} />
         <Route path="/admin/settings" element={<AdminSettings />} />
