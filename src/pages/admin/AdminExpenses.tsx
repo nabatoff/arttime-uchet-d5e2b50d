@@ -97,6 +97,52 @@ const AdminExpenses = () => {
 
   const hasActiveFilters = filterDriver !== "all" || filterCategory !== "all" || dateFrom || dateTo;
 
+  const reloadData = async () => {
+    const [expResult, driversResult] = await Promise.all([
+      api.getExpenses("", "Admin"),
+      api.getDrivers(),
+    ]);
+    if (expResult.success && expResult.data) setAllExpenses(expResult.data);
+    if (driversResult.success && driversResult.data) {
+      setDrivers(driversResult.data.filter((d) => d.role.toLowerCase() !== "admin"));
+    }
+  };
+
+  const openEditExpense = (expense: Expense) => {
+    setEditExpense(expense);
+    setEditCategory(expense.category);
+    setEditAmount(String(expense.amount));
+    setEditCurrency(expense.currency);
+    setEditComment(expense.comment);
+    setEditOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editExpense) return;
+    setSaving(true);
+    await api.updateExpense({
+      ...editExpense,
+      category: editCategory,
+      amount: Number(editAmount),
+      currency: editCurrency,
+      comment: editComment,
+    });
+    toast({ title: "Запись обновлена" });
+    setSaving(false);
+    setEditOpen(false);
+    await reloadData();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setSaving(true);
+    await api.deleteExpense(deleteTarget.id);
+    toast({ title: "Запись удалена" });
+    setSaving(false);
+    setDeleteTarget(null);
+    await reloadData();
+  };
+
   const handleAddExpense = async () => {
     if (!addDriver || !addAmount) {
       toast({ title: "Выберите водителя и сумму", variant: "destructive" });
