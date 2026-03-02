@@ -1,7 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { UserCircle, Sun, Moon } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useQueryClient } from "@tanstack/react-query";
 import BottomNav from "./BottomNav";
+import PullToRefresh from "./PullToRefresh";
 import logo from "@/assets/logo.png";
 
 interface PageLayoutProps {
@@ -12,6 +14,13 @@ interface PageLayoutProps {
 const PageLayout = ({ children, title }: PageLayoutProps) => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const queryClient = useQueryClient();
+
+  const handleRefresh = async () => {
+    await queryClient.invalidateQueries();
+    // Small delay so spinner is visible
+    await new Promise((r) => setTimeout(r, 400));
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -40,7 +49,11 @@ const PageLayout = ({ children, title }: PageLayoutProps) => {
           </div>
         </header>
       )}
-      <main className="flex-1 px-4 pb-20 pt-4">{children}</main>
+      <main className="flex-1 px-4 pb-20 pt-4">
+        <PullToRefresh onRefresh={handleRefresh}>
+          {children}
+        </PullToRefresh>
+      </main>
       <BottomNav />
     </div>
   );
