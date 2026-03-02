@@ -101,6 +101,16 @@ const AdminExpenses = () => {
       const driver = drivers.find((d) => String(d.id) === addDriver);
       const currentBalance = driver?.balances?.[addCurrency] ?? 0;
       await api.updateBalance(addDriver, addCurrency, currentBalance + Number(addAmount));
+      // Save topup as expense record for history
+      await api.addExpense({
+        driverId: addDriver,
+        date: new Date().toISOString(),
+        category: "Пополнение",
+        amount: Number(addAmount),
+        currency: addCurrency,
+        comment: addComment || "Пополнение баланса",
+        receiptUrl: "",
+      });
       toast({ title: "Баланс пополнен" });
     } else {
       // Add expense
@@ -362,14 +372,15 @@ const AdminExpenses = () => {
           </p>
           {filtered.map((expense) => {
             const expDate = new Date(expense.date);
+            const isTopup = expense.category === "Пополнение";
             return (
-              <Card key={expense.id} className="border-border bg-card">
+              <Card key={expense.id} className={cn("border-border bg-card", isTopup ? "border-l-4 border-l-green-500" : "border-l-4 border-l-destructive")}>
                 <CardContent className="p-3">
                   <div className="flex items-start justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-foreground">
-                          {Number(expense.amount).toLocaleString("ru-RU")} {CURRENCY_SYMBOLS[expense.currency as Currency] || expense.currency}
+                        <span className={cn("text-sm font-semibold", isTopup ? "text-green-500" : "text-destructive")}>
+                          {isTopup ? "+" : "−"}{Number(expense.amount).toLocaleString("ru-RU")} {CURRENCY_SYMBOLS[expense.currency as Currency] || expense.currency}
                         </span>
                         <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
                           {expense.category}
