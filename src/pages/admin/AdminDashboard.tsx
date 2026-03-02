@@ -1,19 +1,32 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { api } from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
 import PageLayout from "@/components/PageLayout";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, ChevronRight } from "lucide-react";
-import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type User } from "@/types";
+import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { ALL_CURRENCIES, CURRENCY_SYMBOLS, type Currency, type User } from "@/types";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format } from "date-fns";
+import { ru } from "date-fns/locale";
+
+const CURRENCY_LABELS: Record<Currency, string> = {
+  KZT: "БАЛАНС В ТЕНГЕ:",
+  RUB: "БАЛАНС В РУБЛЯХ:",
+  UZS: "БАЛАНС В СУМАХ:",
+  CNY: "БАЛАНС В ЮАНЯХ:",
+  EUR: "БАЛАНС В ЕВРО:",
+};
 
 const AdminDashboard = () => {
+  const { user: currentUser } = useAuth();
   const [drivers, setDrivers] = useState<User[]>([]);
-  const [selectedDriver, setSelectedDriver] = useState<User | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
 
   // Balance adjustment
   const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
@@ -25,21 +38,35 @@ const AdminDashboard = () => {
     const load = async () => {
       const result = await api.getDrivers();
       if (result.success && result.data) {
-        setDrivers(result.data);
-        if (result.data.length > 0) setSelectedDriver(result.data[0]);
+        // Filter out admins
+        const onlyDrivers = result.data.filter(
+          (d) => d.role.toLowerCase() !== "admin"
+        );
+        setDrivers(onlyDrivers);
       }
       setLoading(false);
     };
     load();
   }, []);
 
-  // Get active currencies for the selected driver
+  const selectedDriver = drivers[currentIndex] || null;
+
   const getActiveCurrencies = (driver: User): Currency[] => {
     const available = driver.availableCurrencies
       .split(",")
       .map((c) => c.trim())
       .filter((c) => ALL_CURRENCIES.includes(c as Currency)) as Currency[];
     return available.length > 0 ? available : ALL_CURRENCIES;
+  };
+
+  const handleSwipe = () => {
+    const diff = touchStartX.current - touchEndX.current;
+    if (Math.abs(diff) < 50) return;
+    if (diff > 0 && currentIndex < drivers.length - 1) {
+      setCurrentIndex((i) => i + 1);
+    } else if (diff < 0 && currentIndex > 0) {
+      setCurrentIndex((i) => i - 1);
+    }
   };
 
   const handleBalanceUpdate = async () => {
@@ -54,19 +81,18 @@ const AdminDashboard = () => {
           : d
       )
     );
-    setSelectedDriver({
-      ...selectedDriver,
-      balances: { ...selectedDriver.balances, [adjCurrency]: Number(adjAmount) },
-    });
 
     setAdjSaving(false);
     setBalanceDialogOpen(false);
     setAdjAmount("");
   };
 
+  const today = new Date();
+  const dateStr = format(today, "EEEE, d MMMM yyyy 'г.'", { locale: ru });
+
   if (loading) {
     return (
-      <PageLayout title="Панель управления">
+      <PageLayout title="Мой баланс">
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
@@ -74,76 +100,116 @@ const AdminDashboard = () => {
     );
   }
 
+  if (drivers.length === 0) {
+    return (
+      <PageLayout title="Мой баланс">
+        <p className="py-10 text-center text-muted-foreground">Нет водителей</p>
+      </PageLayout>
+    );
+  }
+
   const activeCurrencies = selectedDriver ? getActiveCurrencies(selectedDriver) : [];
 
   return (
-    <PageLayout title="Панель управления">
-      {/* Driver Carousel */}
-      <div className="mb-6 -mx-4 px-4">
-        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-          {drivers.map((driver) => (
-            <button
-              key={driver.id}
-              onClick={() => setSelectedDriver(driver)}
-              className={cn(
-                "flex flex-shrink-0 flex-col items-center gap-1 rounded-xl px-4 py-3 transition-colors",
-                selectedDriver?.id === driver.id
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card text-foreground"
-              )}
-            >
-              {driver.photo ? (
-                <img src={driver.photo} alt={driver.name} className="h-10 w-10 rounded-full object-cover" />
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-sm font-bold">
-                  {driver.name.charAt(0)}
-                </div>
-              )}
-              <span className="max-w-[80px] truncate text-xs font-medium">
-                {driver.name}
-              </span>
-            </button>
-          ))}
+    <PageLayout title="Мой баланс">
+      <div
+        className="animate-fade-in"
+        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => { touchEndX.current = e.changedTouches[0].clientX; handleSwipe(); }}
+      >
+        {/* Greeting */}
+        <div className="mb-6 rounded-xl bg-primary px-5 py-4">
+          <h2 className="text-xl font-bold text-primary-foreground">
+            Здравствуйте, {currentUser?.name || "Админ"}!
+          </h2>
+          <p className="mt-1 text-sm capitalize text-primary-foreground/80">
+            Сегодня {dateStr}
+          </p>
         </div>
-      </div>
 
-      {selectedDriver && (
-        <div className="space-y-4 animate-fade-in">
-          {/* Balances — only active currencies */}
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-muted-foreground">Балансы</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setBalanceDialogOpen(true)}
-                className="text-xs text-primary"
-              >
-                Изменить <ChevronRight className="ml-1 h-3 w-3" />
-              </Button>
-            </div>
-            {activeCurrencies.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">
-                Нет доступных валют. Настройте в разделе «Настройки».
-              </p>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {activeCurrencies.map((c) => (
-                  <Card key={c} className="border-border bg-card">
-                    <CardContent className="p-3">
-                      <p className="text-xs text-muted-foreground">{CURRENCY_FLAGS[c]} {c}</p>
-                      <p className="text-lg font-bold text-foreground">
-                        {selectedDriver.balances?.[c]?.toLocaleString("ru-RU") ?? "0"}
-                        <span className="ml-1 text-xs text-muted-foreground">{CURRENCY_SYMBOLS[c]}</span>
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+        {/* Driver selector */}
+        <div className="mb-4 flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={currentIndex === 0}
+            onClick={() => setCurrentIndex((i) => i - 1)}
+            className="text-muted-foreground"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <div className="text-center">
+            <p className="text-lg font-bold text-foreground">{selectedDriver?.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {currentIndex + 1} / {drivers.length}
+            </p>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={currentIndex === drivers.length - 1}
+            onClick={() => setCurrentIndex((i) => i + 1)}
+            className="text-muted-foreground"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </Button>
         </div>
-      )}
+
+        {/* Balance Cards */}
+        <div className="space-y-3">
+          {activeCurrencies.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              Нет доступных валют. Настройте в разделе «Настройки».
+            </p>
+          ) : (
+            activeCurrencies.map((c) => {
+              const balance = selectedDriver?.balances?.[c] ?? 0;
+              const isNegative = balance < 0;
+              return (
+                <button
+                  key={c}
+                  onClick={() => {
+                    setAdjCurrency(c);
+                    setAdjAmount(String(balance));
+                    setBalanceDialogOpen(true);
+                  }}
+                  className={cn(
+                    "w-full rounded-xl px-5 py-4 text-center transition-transform active:scale-[0.98]",
+                    isNegative
+                      ? "bg-gradient-to-r from-red-600 to-red-500"
+                      : "bg-gradient-to-r from-green-600 to-green-500"
+                  )}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wider text-white/90">
+                    {CURRENCY_LABELS[c]}
+                  </p>
+                  <p className="mt-1 text-3xl font-bold text-white">
+                    {balance.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        {/* Dots indicator */}
+        {drivers.length > 1 && (
+          <div className="mt-6 flex justify-center gap-1.5">
+            {drivers.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentIndex(i)}
+                className={cn(
+                  "h-2 rounded-full transition-all",
+                  i === currentIndex
+                    ? "w-6 bg-primary"
+                    : "w-2 bg-muted-foreground/30"
+                )}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Balance Adjustment Dialog */}
       <Dialog open={balanceDialogOpen} onOpenChange={setBalanceDialogOpen}>
@@ -159,7 +225,7 @@ const AdminDashboard = () => {
               <SelectContent>
                 {activeCurrencies.map((c) => (
                   <SelectItem key={c} value={c}>
-                    {CURRENCY_FLAGS[c]} {c} ({CURRENCY_SYMBOLS[c]})
+                    {CURRENCY_LABELS[c]} ({CURRENCY_SYMBOLS[c]})
                   </SelectItem>
                 ))}
               </SelectContent>
