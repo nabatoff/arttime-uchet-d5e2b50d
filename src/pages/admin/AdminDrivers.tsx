@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, UserCircle, Plus, ChevronRight, ArrowLeft } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Loader2, UserCircle, Plus, ChevronRight, ArrowLeft, Trash2 } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_FLAGS, type Currency, type User } from "@/types";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -89,6 +90,17 @@ const AdminDrivers = () => {
     setCreating(false);
   };
 
+  const handleDeleteDriver = async (driver: User) => {
+    const result = await api.deleteDriver(driver.id);
+    if (result.success) {
+      toast({ title: `${driver.name} удалён` });
+      setDrivers((prev) => prev.filter((d) => d.id !== driver.id));
+      if (selectedDriver?.id === driver.id) setSelectedDriver(null);
+    } else {
+      toast({ title: result.error || "Ошибка удаления", variant: "destructive" });
+    }
+  };
+
   if (loading) {
     return (
       <PageLayout title="Водители">
@@ -131,7 +143,28 @@ const AdminDrivers = () => {
                 Логин: {selectedDriver.login}
               </p>
             </div>
-          </div>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="icon" className="h-8 w-8 shrink-0">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="bg-card border-border">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-foreground">Удалить водителя?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {selectedDriver.name} будет удалён. Его отчёты и расходы сохранятся.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Отмена</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => handleDeleteDriver(selectedDriver)}>
+                    Удалить
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
 
           <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
             Доступные валюты
