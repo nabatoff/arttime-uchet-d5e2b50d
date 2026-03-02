@@ -43,6 +43,7 @@ function AppRoutes() {
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/mileage" element={<AdminMileage />} />
         <Route path="/admin/drivers" element={<AdminDrivers />} />
+        <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/" element={<Navigate to="/admin" replace />} />
         <Route path="*" element={<NotFound />} />
