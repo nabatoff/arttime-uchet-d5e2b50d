@@ -112,4 +112,8 @@ export const api = {
   // Update balance — action is "updateBalance"
   updateBalance: (driverId: string, currency: Currency, amount: number, adminRole: string = "Admin") =>
     apiPost("updateBalance", { targetUserId: driverId, currency, newAmount: amount, adminRole }),
+
+  // Create driver
+  createDriver: (data: { login: string; password: string; name: string; currencies: string }) =>
+    apiPost("createDriver", data),
 };
