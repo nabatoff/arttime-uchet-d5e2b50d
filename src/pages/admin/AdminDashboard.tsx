@@ -47,8 +47,8 @@ const AdminDashboard = () => {
     },
   });
 
-  useFadeIn(greetingRef);
-  useStaggerIn(cardsRef, ":scope > div", [currentIndex, drivers]);
+  useFadeIn(greetingRef, 0, [drivers.length]);
+  useStaggerIn(cardsRef, ":scope > div", [currentIndex, drivers.length]);
 
   const selectedDriver = drivers[currentIndex] || null;
 
