@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/services/api";
 import PageLayout from "@/components/PageLayout";
+import PhotoUpload from "@/components/PhotoUpload";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ const AdminExpenses = () => {
   const [addAmount, setAddAmount] = useState("");
   const [addCurrency, setAddCurrency] = useState<Currency>("KZT");
   const [addComment, setAddComment] = useState("");
+  const [addReceiptUrl, setAddReceiptUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [editExpense, setEditExpense] = useState<Expense | null>(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -175,7 +177,7 @@ const AdminExpenses = () => {
         amount: Number(addAmount),
         currency: addCurrency,
         comment: addComment,
-        receiptUrl: "",
+        receiptUrl: addReceiptUrl,
       });
       toast({ title: "Расход добавлен" });
     }
@@ -184,6 +186,7 @@ const AdminExpenses = () => {
     setAddAmount("");
     setAddComment("");
     setAddCategory("");
+    setAddReceiptUrl("");
     setSaving(false);
     await reloadData();
   };
@@ -307,7 +310,12 @@ const AdminExpenses = () => {
                 className="bg-secondary border-border"
               />
 
-              <Button className="w-full" onClick={handleAddExpense} disabled={saving}>
+              {/* Receipt photo (only for expense) */}
+              {addType === "expense" && (
+                <PhotoUpload label="Фото чека" onUpload={setAddReceiptUrl} />
+              )}
+
+              <Button className="w-full" onClick={handleAddExpense} disabled={saving || (addType === "expense" && !addReceiptUrl)}>
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {addType === "topup" ? "Пополнить" : "Сохранить расход"}
               </Button>
