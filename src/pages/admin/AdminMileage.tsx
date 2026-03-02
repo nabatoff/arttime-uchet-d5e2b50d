@@ -12,9 +12,12 @@ import { ru } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { MileageReport, User } from "@/types";
 import { useQuery } from "@tanstack/react-query";
+import { useScrollReveal } from "@/hooks/useGsap";
 
 const AdminMileage = () => {
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  useScrollReveal(listRef);
   const [selectedDriver, setSelectedDriver] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
@@ -103,7 +106,7 @@ const AdminMileage = () => {
       ) : filtered.length === 0 ? (
         <p className="py-10 text-center text-muted-foreground">Нет отчетов</p>
       ) : (
-        <div className="space-y-2 animate-fade-in">
+        <div ref={listRef} className="space-y-2">
           {filtered.map((r) => (
             <Card key={r.id} className="border-border bg-card overflow-hidden">
               <CardContent className="p-3">
