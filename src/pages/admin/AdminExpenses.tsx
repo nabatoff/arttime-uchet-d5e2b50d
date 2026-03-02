@@ -6,7 +6,7 @@ import PhotoUpload from "@/components/PhotoUpload";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Filter, X, Plus, CalendarIcon, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Filter, X, Plus, CalendarIcon, Pencil, Trash2, Download } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User } from "@/types";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -189,6 +189,23 @@ const AdminExpenses = () => {
     await reloadData();
   };
 
+  const exportToExcel = () => {
+    import("xlsx").then((XLSX) => {
+      const rows = filtered.map((e) => ({
+        "Дата": format(new Date(e.date), "dd.MM.yyyy HH:mm", { locale: ru }),
+        "Водитель": getDriverName(e.driverId),
+        "Категория": e.category,
+        "Сумма": e.amount,
+        "Валюта": e.currency,
+        "Комментарий": e.comment,
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Расходы");
+      XLSX.writeFile(wb, `Расходы_${format(new Date(), "dd-MM-yyyy")}.xlsx`);
+    });
+  };
+
   return (
     <PageLayout title="Расходы">
       {/* Top actions */}
@@ -213,6 +230,10 @@ const AdminExpenses = () => {
           </Button>
         )}
         <div className="flex-1" />
+        <Button variant="secondary" size="sm" onClick={exportToExcel} className="gap-1.5" disabled={filtered.length === 0}>
+          <Download className="h-4 w-4" />
+          Excel
+        </Button>
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-1.5">
