@@ -185,14 +185,7 @@ const AdminExpenses = () => {
     setAddComment("");
     setAddCategory("");
     setSaving(false);
-
-    // Reload
-    const expResult = await api.getExpenses("", "Admin");
-    if (expResult.success && expResult.data) setAllExpenses(expResult.data);
-    const driversResult = await api.getDrivers();
-    if (driversResult.success && driversResult.data) {
-      setDrivers(driversResult.data.filter((d) => d.role.toLowerCase() !== "admin"));
-    }
+    await reloadData();
   };
 
   return (
