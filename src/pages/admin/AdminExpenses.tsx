@@ -214,7 +214,7 @@ const AdminExpenses = () => {
           variant={showFilters ? "default" : "secondary"}
           size="sm"
           onClick={() => setShowFilters(!showFilters)}
-          className="gap-1.5"
+          className="gap-1.5 shrink-0"
         >
           <Filter className="h-4 w-4" />
           Фильтры
@@ -225,11 +225,11 @@ const AdminExpenses = () => {
           )}
         </Button>
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-xs text-muted-foreground">
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-xs text-muted-foreground shrink-0">
             <X className="h-3 w-3" /> Сбросить
           </Button>
         )}
-        <div className="flex-1" />
+        <div className="flex-1 min-w-0" />
         <Button variant="secondary" size="sm" onClick={exportToExcel} className="gap-1.5" disabled={filtered.length === 0}>
           <Download className="h-4 w-4" />
           Excel
