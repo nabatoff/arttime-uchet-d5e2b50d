@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { MileageGateProvider, useMileageGate } from "@/contexts/MileageGateContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/driver/Dashboard";
 import Expenses from "./pages/driver/Expenses";
@@ -20,8 +21,9 @@ const queryClient = new QueryClient();
 
 function AppRoutes() {
   const { user, isLoading, isAuthenticated } = useAuth();
+  const { mileageSubmittedToday, loading: mileageLoading } = useMileageGate();
 
-  if (isLoading) {
+  if (isLoading || mileageLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -51,11 +53,21 @@ function AppRoutes() {
     );
   }
 
+  // Driver: if mileage not submitted today, force to /mileage
+  if (!mileageSubmittedToday) {
+    return (
+      <Routes>
+        <Route path="/mileage" element={<Mileage />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="*" element={<Navigate to="/mileage" replace />} />
+      </Routes>
+    );
+  }
+
   return (
     <Routes>
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/expenses" element={<Expenses />} />
-      <Route path="/mileage" element={<Mileage />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<NotFound />} />
@@ -71,7 +83,9 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <AppRoutes />
+            <MileageGateProvider>
+              <AppRoutes />
+            </MileageGateProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
