@@ -4,18 +4,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 const driverTabs = [
-  { path: "/dashboard", label: "Баланс", icon: Wallet },
+  { path: "/dashboard", label: "Мой баланс", icon: Wallet },
   { path: "/expenses", label: "Расходы", icon: Receipt },
   { path: "/mileage", label: "Пробег", icon: Gauge },
-  { path: "/profile", label: "Профиль", icon: UserCircle },
 ];
 
 const adminTabs = [
-  { path: "/admin", label: "Панель", icon: LayoutDashboard },
+  { path: "/admin", label: "Мой баланс", icon: LayoutDashboard },
   { path: "/admin/expenses", label: "Расходы", icon: Receipt },
   { path: "/admin/mileage", label: "Пробег", icon: Gauge },
   { path: "/admin/drivers", label: "Водители", icon: Users },
-  { path: "/profile", label: "Профиль", icon: UserCircle },
 ];
 
 const BottomNav = () => {
