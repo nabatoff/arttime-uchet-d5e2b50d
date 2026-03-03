@@ -335,9 +335,6 @@ function transfer(body) {
   if (!fromDriverId || !toDriverId) {
     return { success: false, error: "Не указаны водители" };
   }
-  if (fromDriverId === toDriverId) {
-    return { success: false, error: "Нельзя переводить самому себе" };
-  }
   if (!(amount > 0)) {
     return { success: false, error: "Сумма должна быть > 0" };
   }
