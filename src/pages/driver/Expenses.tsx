@@ -206,43 +206,75 @@ const Expenses = () => {
       ) : expenses.length === 0 ? (
         <p className="py-10 text-center text-muted-foreground">Нет расходов за последние 3 дня</p>
       ) : (
-        <div ref={listRef} className="space-y-2">
+        <div ref={listRef} className="space-y-3">
           {expenses.map((expense) => {
             const expenseDate = new Date(expense.date);
             const editable = isToday(expenseDate) && expense.category !== "Пополнение";
             const isTopup = expense.category === "Пополнение";
             return (
-              <Card key={expense.id} className={cn("card-elevated", isTopup ? "border-l-4 border-l-success" : "border-l-4 border-l-destructive")}>
-                <CardContent className="flex items-center justify-between p-3">
+              <div
+                key={expense.id}
+                className={cn(
+                  "group relative overflow-hidden rounded-2xl border border-border/60 bg-card p-4 transition-all duration-200 hover:border-border",
+                  "shadow-[var(--card-shadow)]"
+                )}
+              >
+                {/* Accent strip */}
+                <div className={cn(
+                  "absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl",
+                  isTopup ? "bg-success" : "bg-destructive"
+                )} />
+
+                <div className="flex items-start gap-3 pl-2">
+                  {/* Receipt thumbnail */}
+                  {expense.receiptUrl ? (
+                    <img
+                      src={expense.receiptUrl}
+                      alt="Чек"
+                      onClick={() => setZoomImage(expense.receiptUrl)}
+                      className="h-12 w-12 shrink-0 cursor-pointer rounded-xl border border-border/60 object-cover transition-transform hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
+                      <span className="text-lg">{isTopup ? "↑" : "↓"}</span>
+                    </div>
+                  )}
+
+                  {/* Info */}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className={cn("text-sm font-semibold", isTopup ? "text-success" : "text-destructive")}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={cn(
+                        "text-base font-bold font-display tracking-tight",
+                        isTopup ? "text-success" : "text-destructive"
+                      )}>
                         {isTopup ? "+" : "−"}{expense.amount.toLocaleString("ru-RU")} {CURRENCY_SYMBOLS[expense.currency]}
                       </span>
-                      <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      {editable && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEdit(expense)}
+                          className="h-7 w-7 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-primary"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      <span className="inline-flex items-center rounded-md bg-secondary/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                         {expense.category}
                       </span>
+                      <span className="text-[11px] text-muted-foreground/60">·</span>
+                      <span className="text-[11px] text-muted-foreground/60">
+                        {format(expenseDate, "dd MMM, HH:mm", { locale: ru })}
+                      </span>
                     </div>
-                    <p className="truncate text-xs text-muted-foreground">{expense.comment}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {format(expenseDate, "dd MMM, HH:mm", { locale: ru })}
-                    </p>
-                    {expense.receiptUrl && (
-                      <img
-                        src={expense.receiptUrl}
-                        alt="Чек"
-                        onClick={() => setZoomImage(expense.receiptUrl)}
-                        className="mt-1 h-10 w-10 cursor-pointer rounded border border-border object-cover transition-opacity hover:opacity-80"
-                      />
+                    {expense.comment && (
+                      <p className="mt-1 truncate text-xs text-muted-foreground/80">{expense.comment}</p>
                     )}
                   </div>
-                  {editable && (
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(expense)} className="text-muted-foreground hover:text-primary">
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
