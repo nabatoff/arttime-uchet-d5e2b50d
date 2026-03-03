@@ -18,8 +18,7 @@ const PageLayout = ({ children, title }: PageLayoutProps) => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
-  const [desktopRefreshing, setDesktopRefreshing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = async () => {
     await queryClient.invalidateQueries();
