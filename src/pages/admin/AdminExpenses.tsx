@@ -79,6 +79,11 @@ const AdminExpenses = () => {
     return driver?.name || "Неизвестный";
   };
 
+  const getDriverLogin = (driverId: string) => {
+    const driver = drivers.find((d) => String(d.id) === String(driverId));
+    return driver?.login || "";
+  };
+
   // Apply filters
   const filtered = allExpenses.filter((e) => {
     if (filterDriver !== "all" && String(e.driverId) !== filterDriver) return false;
@@ -196,6 +201,7 @@ const AdminExpenses = () => {
       const rows = filtered.map((e) => ({
         "Дата": format(new Date(e.date), "dd.MM.yyyy HH:mm", { locale: ru }),
         "Водитель": getDriverName(e.driverId),
+        "Логин": getDriverLogin(e.driverId),
         "Категория": e.category,
         "Сумма": e.amount,
         "Валюта": e.currency,
@@ -488,22 +494,18 @@ const AdminExpenses = () => {
                         {isTopup ? "+" : "−"}{Number(expense.amount).toLocaleString("ru-RU")} {CURRENCY_SYMBOLS[expense.currency as Currency] || expense.currency}
                       </span>
                       <div className="flex items-center gap-0.5 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-primary"
+                        <button
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground opacity-0 transition-all group-hover:opacity-100 hover:bg-secondary hover:text-foreground"
                           onClick={() => openEditExpense(expense)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
+                        </button>
+                        <button
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground opacity-0 transition-all group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => setDeleteTarget(expense)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        </button>
                       </div>
                     </div>
                     <p className="text-xs font-medium text-primary">
