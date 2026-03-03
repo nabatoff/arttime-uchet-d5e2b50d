@@ -124,4 +124,8 @@ export const api = {
   // Delete driver (keeps reports)
   deleteDriver: (driverId: string) =>
     apiPost("deleteDriver", { userId: driverId }),
+
+  // Update driver profile (name, login, password)
+  updateDriver: (driverId: string, data: { name?: string; login?: string; password?: string }) =>
+    apiPost("updateDriver", { userId: driverId, ...data }),
 };
