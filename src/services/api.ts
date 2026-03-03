@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "@/config";
-import type { ApiResponse, AppData, Expense, MileageReport, User, Currency, UserRole } from "@/types";
+import type { ApiResponse, AppData, Expense, MileageReport, User, Currency, UserRole, TransferRecord } from "@/types";
 
 async function apiPost<T = unknown>(action: string, params: Record<string, unknown> | object = {}): Promise<ApiResponse<T>> {
   try {
@@ -35,6 +35,7 @@ function normalizeUser(raw: Record<string, unknown>): User {
     photo: raw.photo as string | undefined,
     availableCurrencies: String(raw.availableCurrencies ?? raw.currencies ?? ""),
     balances: (raw.balances as Record<Currency, number>) ?? {} as Record<Currency, number>,
+    preBalances: (raw.preBalances as Record<Currency, number>) ?? {} as Record<Currency, number>,
   };
 }
 
@@ -64,6 +65,22 @@ export const api = {
   // Balance — returns { success, balances }
   getBalance: (driverId: string) =>
     apiPost<Record<Currency, number>>("getBalance", { userId: driverId }),
+
+  // Pre-balance
+  getPreBalance: (driverId: string) =>
+    apiPost<Record<Currency, number>>("getPreBalance", { userId: driverId }),
+
+  // Update pre-balance
+  updatePreBalance: (driverId: string, currency: Currency, amount: number, adminRole: string = "Admin") =>
+    apiPost("updatePreBalance", { targetUserId: driverId, currency, newAmount: amount, adminRole }),
+
+  // Transfer from pre-balance to main balance
+  transfer: (fromDriverId: string, toDriverId: string, currency: Currency, amount: number, performedBy: string) =>
+    apiPost("transfer", { fromDriverId, toDriverId, currency, amount, performedBy }),
+
+  // Get transfers history
+  getTransfers: () =>
+    apiPost<TransferRecord[]>("getTransfers"),
 
   // Expenses — uses userId and role
   getExpenses: (driverId: string, role?: string) =>

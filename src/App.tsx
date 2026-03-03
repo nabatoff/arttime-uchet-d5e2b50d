@@ -15,6 +15,9 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminMileage from "./pages/admin/AdminMileage";
 import AdminDrivers from "./pages/admin/AdminDrivers";
 import AdminExpenses from "./pages/admin/AdminExpenses";
+import BalanceDashboard from "./pages/balance/BalanceDashboard";
+import BalanceTransfers from "./pages/balance/BalanceTransfers";
+import BalanceExpenses from "./pages/balance/BalanceExpenses";
 import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
@@ -22,7 +25,7 @@ import { Loader2 } from "lucide-react";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 min — data stays fresh, no re-fetch on tab switch
+      staleTime: 5 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
     },
@@ -60,6 +63,20 @@ function AppRoutes() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/install" element={<Install />} />
         <Route path="/" element={<Navigate to="/admin" replace />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    );
+  }
+
+  if (user?.role === "balance") {
+    return (
+      <Routes>
+        <Route path="/balance" element={<BalanceDashboard />} />
+        <Route path="/balance/transfers" element={<BalanceTransfers />} />
+        <Route path="/balance/expenses" element={<BalanceExpenses />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/install" element={<Install />} />
+        <Route path="/" element={<Navigate to="/balance" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     );
