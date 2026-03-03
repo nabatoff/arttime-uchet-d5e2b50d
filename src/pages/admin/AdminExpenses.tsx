@@ -3,7 +3,6 @@ import { api } from "@/services/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PageLayout from "@/components/PageLayout";
 import PhotoUpload from "@/components/PhotoUpload";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Filter, X, Plus, CalendarIcon, Pencil, Trash2, Download } from "lucide-react";
@@ -443,7 +442,7 @@ const AdminExpenses = () => {
           {hasActiveFilters ? "Нет расходов по выбранным фильтрам" : "Нет расходов"}
         </p>
       ) : (
-        <div ref={listRef} className="space-y-2">
+        <div ref={listRef} className="space-y-3">
           <p className="mb-2 text-xs text-muted-foreground">
             Найдено: {filtered.length}
           </p>
@@ -451,52 +450,80 @@ const AdminExpenses = () => {
             const expDate = new Date(expense.date);
             const isTopup = expense.category === "Пополнение";
             return (
-              <Card key={expense.id} className={cn("card-elevated", isTopup ? "border-l-4 border-l-green-500" : "border-l-4 border-l-destructive")}>
-                <CardContent className="p-3">
-                  <div className="flex items-start justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className={cn("text-sm font-semibold", isTopup ? "text-green-500" : "text-destructive")}>
-                          {isTopup ? "+" : "−"}{Number(expense.amount).toLocaleString("ru-RU")} {CURRENCY_SYMBOLS[expense.currency as Currency] || expense.currency}
-                        </span>
-                        <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                          {expense.category}
-                        </span>
-                      </div>
-                      <p className="mt-0.5 text-xs font-medium text-primary">
-                        {getDriverName(String(expense.driverId))}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {expense.comment}
-                      </p>
-                      {expense.receiptUrl && (
-                        <img
-                          src={expense.receiptUrl}
-                          alt="Чек"
-                          onClick={() => setZoomImage(expense.receiptUrl)}
-                          className="mt-1 h-10 w-10 cursor-pointer rounded border border-border object-cover transition-opacity hover:opacity-80"
-                        />
-                      )}
+              <div
+                key={expense.id}
+                className={cn(
+                  "group relative overflow-hidden rounded-2xl border border-border/60 bg-card p-4 transition-all duration-200 hover:border-border",
+                  "shadow-[var(--card-shadow)]"
+                )}
+              >
+                {/* Accent strip */}
+                <div className={cn(
+                  "absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl",
+                  isTopup ? "bg-success" : "bg-destructive"
+                )} />
+
+                <div className="flex items-start gap-3 pl-2">
+                  {/* Receipt thumbnail */}
+                  {expense.receiptUrl ? (
+                    <img
+                      src={expense.receiptUrl}
+                      alt="Чек"
+                      onClick={() => setZoomImage(expense.receiptUrl)}
+                      className="h-12 w-12 shrink-0 cursor-pointer rounded-xl border border-border/60 object-cover transition-transform hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
+                      <span className="text-lg">{isTopup ? "↑" : "↓"}</span>
                     </div>
-                    <div className="ml-2 flex flex-col items-end gap-1">
-                      <p className="text-[10px] text-muted-foreground">
-                        {format(expDate, "dd MMM", { locale: ru })}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {format(expDate, "HH:mm")}
-                      </p>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary" onClick={() => openEditExpense(expense)}>
-                          <Pencil className="h-3 w-3" />
+                  )}
+
+                  {/* Info */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={cn(
+                        "text-base font-bold font-display tracking-tight",
+                        isTopup ? "text-success" : "text-destructive"
+                      )}>
+                        {isTopup ? "+" : "−"}{Number(expense.amount).toLocaleString("ru-RU")} {CURRENCY_SYMBOLS[expense.currency as Currency] || expense.currency}
+                      </span>
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-primary"
+                          onClick={() => openEditExpense(expense)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(expense)}>
-                          <Trash2 className="h-3 w-3" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
+                          onClick={() => setDeleteTarget(expense)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
+                    <p className="text-xs font-medium text-primary">
+                      {getDriverName(String(expense.driverId))}
+                    </p>
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      <span className="inline-flex items-center rounded-md bg-secondary/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        {expense.category}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground/60">·</span>
+                      <span className="text-[11px] text-muted-foreground/60">
+                        {format(expDate, "dd MMM, HH:mm", { locale: ru })}
+                      </span>
+                    </div>
+                    {expense.comment && (
+                      <p className="mt-1 truncate text-xs text-muted-foreground/80">{expense.comment}</p>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
