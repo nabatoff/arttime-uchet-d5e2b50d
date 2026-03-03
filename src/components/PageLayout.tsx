@@ -5,7 +5,6 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { useIsMobile } from "@/hooks/use-mobile";
 import BottomNav from "./BottomNav";
-import PullToRefresh from "./PullToRefresh";
 import PageTransition from "./PageTransition";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
