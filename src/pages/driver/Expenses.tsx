@@ -251,7 +251,7 @@ const Expenses = () => {
                       {editable && (
                         <button
                           onClick={() => openEdit(expense)}
-                          className="h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-md text-muted-foreground opacity-0 transition-all group-hover:opacity-100 hover:bg-secondary hover:text-foreground"
+                          className="h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
