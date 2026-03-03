@@ -495,13 +495,13 @@ const AdminExpenses = () => {
                       </span>
                       <div className="flex items-center gap-0.5 shrink-0">
                         <button
-                          className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground opacity-0 transition-all group-hover:opacity-100 hover:bg-secondary hover:text-foreground"
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                           onClick={() => openEditExpense(expense)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <button
-                          className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground opacity-0 transition-all group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => setDeleteTarget(expense)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
