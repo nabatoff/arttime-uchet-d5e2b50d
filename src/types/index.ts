@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "driver";
+export type UserRole = "admin" | "driver" | "balance";
 
 export type Currency = "KZT" | "RUB" | "UZS" | "CNY" | "EUR";
 
@@ -28,6 +28,7 @@ export interface User {
   photo?: string;
   availableCurrencies: string; // comma-separated: "KZT,RUB"
   balances: Record<Currency, number>;
+  preBalances: Record<Currency, number>;
 }
 
 export interface Expense {
@@ -49,6 +50,16 @@ export interface MileageReport {
   date: string;
   km: number;
   photoUrl: string;
+}
+
+export interface TransferRecord {
+  id: string;
+  fromDriverId: string;
+  toDriverId: string;
+  currency: Currency;
+  amount: number;
+  date: string;
+  performedBy: string;
 }
 
 export interface AppData {

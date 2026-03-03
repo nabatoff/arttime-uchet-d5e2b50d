@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Wallet, Receipt, Gauge, LayoutDashboard, Users } from "lucide-react";
+import { Wallet, Receipt, Gauge, LayoutDashboard, Users, ArrowLeftRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMileageGate } from "@/contexts/MileageGateContext";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,12 @@ const adminTabs = [
   { path: "/admin/drivers", label: "Водители", icon: Users },
 ];
 
+const balanceTabs = [
+  { path: "/balance", label: "Балансы", icon: LayoutDashboard },
+  { path: "/balance/transfers", label: "Переводы", icon: ArrowLeftRight },
+  { path: "/balance/expenses", label: "Расходы", icon: Receipt },
+];
+
 const BottomNav = () => {
   const { user } = useAuth();
   const { mileageSubmittedToday } = useMileageGate();
@@ -18,17 +24,20 @@ const BottomNav = () => {
   const navigate = useNavigate();
 
   const isAdmin = user?.role === "admin";
+  const isBalance = user?.role === "balance";
 
   const tabs = isAdmin
     ? adminTabs
-    : mileageSubmittedToday
-      ? [
-          { path: "/dashboard", label: "Баланс", icon: Wallet },
-          { path: "/expenses", label: "Расходы", icon: Receipt },
-        ]
-      : [
-          { path: "/mileage", label: "Пробег", icon: Gauge },
-        ];
+    : isBalance
+      ? balanceTabs
+      : mileageSubmittedToday
+        ? [
+            { path: "/dashboard", label: "Баланс", icon: Wallet },
+            { path: "/expenses", label: "Расходы", icon: Receipt },
+          ]
+        : [
+            { path: "/mileage", label: "Пробег", icon: Gauge },
+          ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 glass-nav border-t border-border/60">
