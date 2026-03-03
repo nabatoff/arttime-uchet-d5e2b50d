@@ -98,7 +98,7 @@ const Expenses = () => {
   };
 
   const handleSave = async () => {
-    if (!user || !amount || !category || !comment || !receiptUrl) return;
+    if (!user || !amount || !category || !receiptUrl) return;
     setSaving(true);
 
     if (editingExpense) {
@@ -128,7 +128,7 @@ const Expenses = () => {
     resetForm();
   };
 
-  const canSave = amount && category && comment && receiptUrl && !saving;
+  const canSave = amount && category && receiptUrl && !saving;
 
   return (
     <PageLayout title="Расходы">
