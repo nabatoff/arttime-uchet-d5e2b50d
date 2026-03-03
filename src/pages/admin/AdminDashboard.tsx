@@ -3,7 +3,14 @@ import { api } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 import PageLayout from "@/components/PageLayout";
 import { Button } from "@/components/ui/button";
-import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ALL_CURRENCIES, type Currency, type User } from "@/types";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -128,15 +135,26 @@ const AdminDashboard = () => {
           </h2>
         </div>
 
-        <div className="mb-4 flex items-center justify-between">
-          <Button variant="ghost" size="icon" disabled={currentIndex === 0} onClick={() => switchDriver(currentIndex - 1)} className="text-muted-foreground">
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <Button variant="ghost" size="icon" disabled={currentIndex === 0} onClick={() => switchDriver(currentIndex - 1)} className="text-muted-foreground shrink-0">
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <div className="text-center">
-            <p className="text-lg font-bold text-foreground">{selectedDriver?.name}</p>
-            <p className="text-xs text-muted-foreground">{currentIndex + 1} / {drivers.length}</p>
-          </div>
-          <Button variant="ghost" size="icon" disabled={currentIndex === drivers.length - 1} onClick={() => switchDriver(currentIndex + 1)} className="text-muted-foreground">
+          <Select
+            value={String(currentIndex)}
+            onValueChange={(val) => switchDriver(Number(val))}
+          >
+            <SelectTrigger className="w-auto min-w-[140px] border-none bg-transparent shadow-none text-center font-bold text-foreground text-lg gap-1 justify-center">
+              <SelectValue>{selectedDriver?.name}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {drivers.map((d, i) => (
+                <SelectItem key={d.id || i} value={String(i)}>
+                  {d.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="ghost" size="icon" disabled={currentIndex === drivers.length - 1} onClick={() => switchDriver(currentIndex + 1)} className="text-muted-foreground shrink-0">
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
