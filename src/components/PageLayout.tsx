@@ -3,9 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { UserCircle, Sun, Moon, RefreshCw } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useQueryClient } from "@tanstack/react-query";
-import { useIsMobile } from "@/hooks/use-mobile";
 import BottomNav from "./BottomNav";
-import PullToRefresh from "./PullToRefresh";
 import PageTransition from "./PageTransition";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
@@ -19,8 +17,7 @@ const PageLayout = ({ children, title }: PageLayoutProps) => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
-  const [desktopRefreshing, setDesktopRefreshing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = async () => {
     await queryClient.invalidateQueries();
@@ -28,17 +25,13 @@ const PageLayout = ({ children, title }: PageLayoutProps) => {
   };
 
   const handleDesktopRefresh = async () => {
-    if (desktopRefreshing) return;
-    setDesktopRefreshing(true);
+    if (refreshing) return;
+    setRefreshing(true);
     await handleRefresh();
-    setDesktopRefreshing(false);
+    setRefreshing(false);
   };
 
-  const content = isMobile ? (
-    <PullToRefresh onRefresh={handleRefresh}>{children}</PullToRefresh>
-  ) : (
-    children
-  );
+  const content = children;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -51,16 +44,14 @@ const PageLayout = ({ children, title }: PageLayoutProps) => {
               <h1 className="text-sm font-semibold text-foreground">{title}</h1>
             </div>
             <div className="flex items-center gap-1">
-              {!isMobile && (
-                <button
+              <button
                   onClick={handleDesktopRefresh}
-                  disabled={desktopRefreshing}
+                  disabled={refreshing}
                   className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
                   title="Обновить"
                 >
-                  <RefreshCw className={cn("h-5 w-5", desktopRefreshing && "animate-spin")} />
+                  <RefreshCw className={cn("h-5 w-5", refreshing && "animate-spin")} />
                 </button>
-              )}
               <button
                 onClick={toggleTheme}
                 className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
