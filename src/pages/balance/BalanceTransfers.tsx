@@ -1,17 +1,20 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { api } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 import PageLayout from "@/components/PageLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, Download, CalendarIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type User, type TransferRecord } from "@/types";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, startOfDay, endOfDay, subDays } from "date-fns";
 import { ru } from "date-fns/locale";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { TransferListSkeleton } from "@/components/TransferCardSkeleton";
 
 const BalanceTransfers = () => {
   const { user } = useAuth();
@@ -24,6 +27,13 @@ const BalanceTransfers = () => {
   const [amount, setAmount] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const defaultDateTo = endOfDay(new Date());
+  const defaultDateFrom = startOfDay(subDays(new Date(), 30));
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(() => defaultDateFrom);
+  const [dateTo, setDateTo] = useState<Date | undefined>(() => defaultDateTo);
+  const since = dateFrom ? startOfDay(dateFrom).toISOString() : undefined;
+  const until = dateTo ? endOfDay(dateTo).toISOString() : undefined;
+
   const { data: drivers = [], isLoading: loadingDrivers } = useQuery({
     queryKey: ["drivers"],
     queryFn: async () => {
@@ -35,13 +45,29 @@ const BalanceTransfers = () => {
     },
   });
 
-  const { data: transfers = [], isLoading: loadingTransfers } = useQuery({
-    queryKey: ["transfers"],
-    queryFn: async () => {
-      const result = await api.getTransfers();
-      return result.success && result.data ? result.data : [] as TransferRecord[];
+  const {
+    data: transfersData,
+    isLoading: loadingTransfers,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["transfers", since ?? "", until ?? ""],
+    queryFn: async ({ pageParam = 0 }) => {
+      const result = await api.getTransfers({
+        since,
+        until,
+        limit: 50,
+        offset: pageParam as number,
+      });
+      return result.success && result.data ? result.data : ([] as TransferRecord[]);
     },
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length >= 50 ? allPages.length * 50 : undefined,
+    initialPageParam: 0,
   });
+
+  const transfers = useMemo(() => transfersData?.pages.flat() ?? [], [transfersData]);
 
   const fromDriver = drivers.find((d) => String(d.id) === fromDriverId);
   const availablePreBalance = fromDriver?.preBalances?.[currency] ?? 0;
@@ -49,6 +75,23 @@ const BalanceTransfers = () => {
   const getDriverName = (id: string) => {
     const d = drivers.find((dr) => String(dr.id) === String(id));
     return d?.name || id;
+  };
+
+  const exportToExcel = () => {
+    import("xlsx").then((XLSX) => {
+      const rows = transfers.map((t) => ({
+        "Дата": format(new Date(t.date), "dd.MM.yyyy HH:mm", { locale: ru }),
+        "От кого": getDriverName(t.fromDriverId),
+        "Кому": getDriverName(t.toDriverId),
+        "Валюта": t.currency,
+        "Сумма": t.amount,
+        "Кто выполнил": t.performedBy || "",
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Переводы");
+      XLSX.writeFile(wb, `Переводы_${format(new Date(), "dd-MM-yyyy")}.xlsx`);
+    });
   };
 
   const handleTransfer = async () => {
@@ -67,7 +110,7 @@ const BalanceTransfers = () => {
       toast({ title: "Перевод выполнен" });
       setAmount("");
       queryClient.invalidateQueries({ queryKey: ["drivers"] });
-      queryClient.invalidateQueries({ queryKey: ["transfers"] });
+      queryClient.invalidateQueries({ queryKey: ["transfers"] } as { queryKey: [string] });
     } else {
       toast({ title: result.error || "Ошибка перевода", variant: "destructive" });
     }
@@ -154,13 +197,35 @@ const BalanceTransfers = () => {
 
         {/* Transfer history */}
         <div>
-          <h3 className="mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            История переводов
-          </h3>
-          {loadingTransfers || loadingDrivers ? (
-            <div className="flex items-center justify-center py-10">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              История переводов
+            </h3>
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("h-9 text-xs", (!dateFrom || !dateTo) && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                    {dateFrom && dateTo ? `${format(dateFrom, "dd.MM.yy")} – ${format(dateTo, "dd.MM.yy")}` : "Период"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <div className="flex gap-1 p-2">
+                    <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus />
+                    <Calendar mode="single" selected={dateTo} onSelect={setDateTo} />
+                  </div>
+                </PopoverContent>
+              </Popover>
+              {transfers.length > 0 && (
+                <Button variant="secondary" size="sm" onClick={exportToExcel} className="gap-1.5 shrink-0">
+                  <Download className="h-4 w-4" />
+                  Excel
+                </Button>
+              )}
             </div>
+          </div>
+          {loadingTransfers || loadingDrivers ? (
+            <TransferListSkeleton count={5} />
           ) : transfers.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Нет переводов</p>
           ) : (
@@ -182,6 +247,14 @@ const BalanceTransfers = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+          {!loadingTransfers && !loadingDrivers && hasNextPage && (
+            <div className="mt-3 flex justify-center">
+              <Button variant="outline" size="sm" onClick={() => fetchNextPage()} disabled={isFetchingNextPage} className="gap-2">
+                {isFetchingNextPage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                Подгрузить ещё
+              </Button>
             </div>
           )}
         </div>

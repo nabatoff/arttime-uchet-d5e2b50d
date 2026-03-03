@@ -23,7 +23,7 @@ export const MileageGateProvider = ({ children }: { children: React.ReactNode })
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user || user.role === "admin") {
+    if (!user || user.role === "admin" || user.role === "balance") {
       setMileageSubmittedToday(true);
       setLoading(false);
       return;

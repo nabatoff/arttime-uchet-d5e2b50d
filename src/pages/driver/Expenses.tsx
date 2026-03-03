@@ -14,6 +14,7 @@ import { ru } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useScrollReveal } from "@/hooks/useGsap";
+import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
 
 const Expenses = () => {
   const { user } = useAuth();
@@ -199,9 +200,7 @@ const Expenses = () => {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        </div>
+        <ExpenseListSkeleton count={4} />
       ) : expenses.length === 0 ? (
         <p className="py-10 text-center text-muted-foreground">Нет расходов за последние 3 дня</p>
       ) : (

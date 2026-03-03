@@ -1,14 +1,22 @@
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import PageLayout from "@/components/PageLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { LogOut, UserCircle, Sun, Moon } from "lucide-react";
 
 const Profile = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const [logoutOpen, setLogoutOpen] = useState(false);
+
+  const handleLogout = () => {
+    setLogoutOpen(false);
+    logout();
+  };
 
   return (
     <PageLayout title="Профиль">
@@ -25,7 +33,11 @@ const Profile = () => {
             <div>
               <p className="text-lg font-bold text-foreground">{user?.name}</p>
               <p className="text-sm text-muted-foreground capitalize">
-                {user?.role === "admin" ? "Администратор" : "Водитель"}
+                {user?.role === "admin"
+                  ? "Администратор"
+                  : user?.role === "balance"
+                    ? "Баланс"
+                    : "Водитель"}
               </p>
             </div>
           </CardContent>
@@ -51,13 +63,29 @@ const Profile = () => {
           </CardContent>
         </Card>
 
-        <Button
-          variant="destructive"
-          className="h-12 w-full gap-2 text-base"
-          onClick={logout}
-        >
-          <LogOut className="h-4 w-4" /> Выйти
-        </Button>
+        <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+          <Button
+            variant="destructive"
+            className="h-12 w-full gap-2 text-base"
+            onClick={() => setLogoutOpen(true)}
+          >
+            <LogOut className="h-4 w-4" /> Выйти
+          </Button>
+          <AlertDialogContent className="bg-card border-border">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-foreground">Выйти из аккаунта?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Вы сможете снова войти, введя логин и пароль.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Отмена</AlertDialogCancel>
+              <AlertDialogAction onClick={handleLogout} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Выйти
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </PageLayout>
   );

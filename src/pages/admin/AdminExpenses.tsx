@@ -1,16 +1,17 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { api } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import PageLayout from "@/components/PageLayout";
 import PhotoUpload from "@/components/PhotoUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Filter, X, Plus, CalendarIcon, Pencil, Trash2, Download } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User } from "@/types";
-import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { format, startOfDay, endOfDay, subDays } from "date-fns";
 import { ru } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -44,19 +45,40 @@ const AdminExpenses = () => {
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Filters
+  const defaultDateTo = endOfDay(new Date());
+  const defaultDateFrom = startOfDay(subDays(new Date(), 30));
+
   const [filterDriver, setFilterDriver] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
-  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(() => defaultDateFrom);
+  const [dateTo, setDateTo] = useState<Date | undefined>(() => defaultDateTo);
 
-  const { data: allExpenses = [], isLoading: loadingExpenses } = useQuery({
-    queryKey: ["adminExpenses"],
-    queryFn: async () => {
-      const result = await api.getExpenses("", "Admin");
-      return result.success && result.data ? result.data : [] as Expense[];
+  const since = dateFrom ? startOfDay(dateFrom).toISOString() : undefined;
+  const until = dateTo ? endOfDay(dateTo).toISOString() : undefined;
+
+  const {
+    data,
+    isLoading: loadingExpenses,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["adminExpenses", since ?? "", until ?? ""],
+    queryFn: async ({ pageParam = 0 }) => {
+      const result = await api.getExpenses("", "Admin", {
+        since,
+        until,
+        limit: 50,
+        offset: pageParam as number,
+      });
+      return result.success && result.data ? result.data : ([] as Expense[]);
     },
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length >= 50 ? allPages.length * 50 : undefined,
+    initialPageParam: 0,
   });
+
+  const allExpenses = useMemo(() => data?.pages.flat() ?? [], [data]);
 
   const { data: drivers = [] } = useQuery({
     queryKey: ["drivers"],
@@ -86,22 +108,25 @@ const AdminExpenses = () => {
     return driver?.login || "";
   };
 
-  // Apply filters
   const filtered = allExpenses.filter((e) => {
     if (filterDriver !== "all" && String(e.driverId) !== filterDriver) return false;
     if (filterCategory !== "all" && e.category !== filterCategory) return false;
-    if (dateFrom || dateTo) {
-      const expDate = new Date(e.date);
-      if (dateFrom && dateTo) {
-        if (!isWithinInterval(expDate, { start: startOfDay(dateFrom), end: endOfDay(dateTo) })) return false;
-      } else if (dateFrom) {
-        if (expDate < startOfDay(dateFrom)) return false;
-      } else if (dateTo) {
-        if (expDate > endOfDay(dateTo)) return false;
-      }
-    }
     return true;
   });
+
+  const summaryByCurrency = useMemo(() => {
+    const expenses: Record<string, number> = {};
+    const topups: Record<string, number> = {};
+    for (const e of filtered) {
+      const c = e.currency;
+      if (e.category === "Пополнение") {
+        topups[c] = (topups[c] ?? 0) + e.amount;
+      } else {
+        expenses[c] = (expenses[c] ?? 0) + e.amount;
+      }
+    }
+    return { expenses, topups };
+  }, [filtered]);
 
   const clearFilters = () => {
     setFilterDriver("all");
@@ -113,7 +138,7 @@ const AdminExpenses = () => {
   const hasActiveFilters = filterDriver !== "all" || filterCategory !== "all" || dateFrom || dateTo;
 
   const reloadData = () => {
-    queryClient.invalidateQueries({ queryKey: ["adminExpenses"] });
+    queryClient.invalidateQueries({ queryKey: ["adminExpenses"] } as { queryKey: [string] });
     queryClient.invalidateQueries({ queryKey: ["drivers"] });
   };
 
@@ -446,11 +471,30 @@ const AdminExpenses = () => {
         </div>
       )}
 
+      {/* Summary */}
+      {!loading && filtered.length > 0 && (
+        <div className="mb-4 rounded-2xl border border-border/60 bg-card p-4 shadow-[var(--card-shadow)]">
+          <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            За выбранный период
+          </p>
+          <div className="flex flex-wrap gap-3 text-sm">
+            {ALL_CURRENCIES.map((c) => {
+              const exp = summaryByCurrency.expenses[c] ?? 0;
+              const top = summaryByCurrency.topups[c] ?? 0;
+              if (exp === 0 && top === 0) return null;
+              return (
+                <span key={c} className="rounded-lg bg-secondary/80 px-2 py-1 font-medium">
+                  {c}: расход −{exp.toLocaleString("ru-RU")} {top > 0 ? ` / пополн. +${top.toLocaleString("ru-RU")}` : ""} {CURRENCY_SYMBOLS[c]}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Results */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        </div>
+        <ExpenseListSkeleton count={6} />
       ) : filtered.length === 0 ? (
         <p className="py-10 text-center text-muted-foreground">
           {hasActiveFilters ? "Нет расходов по выбранным фильтрам" : "Нет расходов"}
@@ -539,6 +583,15 @@ const AdminExpenses = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {!loading && hasNextPage && (
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" onClick={() => fetchNextPage()} disabled={isFetchingNextPage} className="gap-2">
+            {isFetchingNextPage ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Подгрузить ещё
+          </Button>
         </div>
       )}
 

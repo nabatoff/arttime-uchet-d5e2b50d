@@ -368,7 +368,17 @@ function transfer(body) {
   return { success: true };
 }
 
-function getTransfers() {
+function getTransfers(body) {
+  var limit = body && body.limit != null ? Math.max(0, parseInt(body.limit, 10)) : null;
+  var offset = body && body.offset != null ? Math.max(0, parseInt(body.offset, 10)) : 0;
+  var sinceMs = body && parseDateOrNull(body.since);
+  var untilMs = body && parseDateOrNull(body.until);
+  if (untilMs) {
+    var u = new Date(untilMs);
+    u.setHours(23, 59, 59, 999);
+    untilMs = u.getTime();
+  }
+
   var sheet = getTransfersSheet();
   var rows = sheet.getDataRange().getValues();
   var headers = rows[0];
@@ -376,6 +386,10 @@ function getTransfers() {
 
   for (var i = 1; i < rows.length; i++) {
     var r = rowToObj(headers, rows[i]);
+    var rowDate = r.date ? (r.date instanceof Date ? r.date.getTime() : new Date(r.date).getTime()) : 0;
+    if (sinceMs != null && rowDate < sinceMs) continue;
+    if (untilMs != null && rowDate > untilMs) continue;
+
     result.push({
       id: String(r.id || i),
       fromDriverId: String(r.fromDriverId || ""),
@@ -385,6 +399,11 @@ function getTransfers() {
       date: formatDate(r.date),
       performedBy: String(r.performedBy || "")
     });
+  }
+
+  if (offset > 0 || limit != null) {
+    var end = limit != null ? offset + limit : result.length;
+    result = result.slice(offset, end);
   }
 
   return { success: true, data: result };
@@ -405,9 +424,25 @@ function ensureExpensesPerformedByColumn(sheet) {
   sheet.getRange(1, lastCol + 1).setValue("performedBy");
 }
 
+function parseDateOrNull(val) {
+  if (!val) return null;
+  var d = new Date(val);
+  return isNaN(d.getTime()) ? null : d.getTime();
+}
+
 function getExpenses(body) {
   var userId = body.userId;
   var role = body.role;
+  var limit = body.limit != null ? Math.max(0, parseInt(body.limit, 10)) : null;
+  var offset = body.offset != null ? Math.max(0, parseInt(body.offset, 10)) : 0;
+  var sinceMs = parseDateOrNull(body.since);
+  var untilMs = parseDateOrNull(body.until);
+  if (untilMs) {
+    var u = new Date(untilMs);
+    u.setHours(23, 59, 59, 999);
+    untilMs = u.getTime();
+  }
+
   var sheet = getSheet("Expenses");
   if (!sheet) {
     return { success: true, data: [] };
@@ -427,6 +462,10 @@ function getExpenses(body) {
       continue;
     }
 
+    var rowDate = r.date ? (r.date instanceof Date ? r.date.getTime() : new Date(r.date).getTime()) : 0;
+    if (sinceMs != null && rowDate < sinceMs) continue;
+    if (untilMs != null && rowDate > untilMs) continue;
+
     expenses.push({
       id: String(r.id || i),
       driverId: String(r.userId || ""),
@@ -439,6 +478,11 @@ function getExpenses(body) {
       receiptUrl: String(r.receipt_url || r.receiptUrl || ""),
       performedBy: String(r.performedBy || "")
     });
+  }
+
+  if (offset > 0 || limit != null) {
+    var end = limit != null ? offset + limit : expenses.length;
+    expenses = expenses.slice(offset, end);
   }
 
   return { success: true, data: expenses };
@@ -507,6 +551,21 @@ function updateExpense(body) {
   for (var i = 1; i < rows.length; i++) {
     var r = rowToObj(headers, rows[i]);
     if (String(r.id) === String(body.id)) {
+      var userId = String(r.userId || "");
+      var oldCategory = String(r.category || "");
+      var oldAmount = Number(r.amount) || 0;
+      var oldCurrency = String(r.currency || "KZT");
+      var newCategory = body.category !== undefined ? String(body.category) : oldCategory;
+      var newAmount = body.amount !== undefined ? Number(body.amount) : oldAmount;
+      var newCurrency = body.currency !== undefined ? String(body.currency) : oldCurrency;
+
+      if (oldCategory !== "Пополнение" && userId && oldAmount > 0) {
+        addToBalance(userId, oldCurrency, oldAmount);
+      }
+      if (newCategory !== "Пополнение" && userId && newAmount > 0) {
+        addToBalance(userId, newCurrency, -newAmount);
+      }
+
       if (body.category !== undefined) {
         var ci = headers.indexOf("category");
         if (ci !== -1) sheet.getRange(i + 1, ci + 1).setValue(body.category);
@@ -545,8 +604,19 @@ function deleteExpense(body) {
   }
 
   var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+
   for (var i = 1; i < rows.length; i++) {
     if (String(rows[i][0]) === String(expenseId)) {
+      var r = rowToObj(headers, rows[i]);
+      var category = String(r.category || "");
+      var amount = Number(r.amount) || 0;
+      var currency = String(r.currency || "KZT");
+      var userId = String(r.userId || "");
+
+      if (category !== "Пополнение" && userId && amount > 0) {
+        addToBalance(userId, currency, amount);
+      }
       sheet.deleteRow(i + 1);
       return { success: true };
     }
@@ -558,6 +628,16 @@ function deleteExpense(body) {
 
 function getMileage(body) {
   var userId = body && body.userId ? String(body.userId) : "";
+  var limit = body && body.limit != null ? Math.max(0, parseInt(body.limit, 10)) : null;
+  var offset = body && body.offset != null ? Math.max(0, parseInt(body.offset, 10)) : 0;
+  var sinceMs = body && parseDateOrNull(body.since);
+  var untilMs = body && parseDateOrNull(body.until);
+  if (untilMs) {
+    var u = new Date(untilMs);
+    u.setHours(23, 59, 59, 999);
+    untilMs = u.getTime();
+  }
+
   var sheet = getSheet("Mileage");
   if (!sheet) {
     return { success: true, data: [] };
@@ -570,6 +650,10 @@ function getMileage(body) {
   for (var i = 1; i < rows.length; i++) {
     var r = rowToObj(headers, rows[i]);
     if (!userId || String(r.userId) === userId) {
+      var rowDate = r.date ? (r.date instanceof Date ? r.date.getTime() : new Date(r.date).getTime()) : 0;
+      if (sinceMs != null && rowDate < sinceMs) continue;
+      if (untilMs != null && rowDate > untilMs) continue;
+
       reports.push({
         id: String(r.id || i),
         driverId: String(r.userId || ""),
@@ -579,6 +663,11 @@ function getMileage(body) {
         photoUrl: String(r.photo_url || r.photoUrl || "")
       });
     }
+  }
+
+  if (offset > 0 || limit != null) {
+    var end = limit != null ? offset + limit : reports.length;
+    reports = reports.slice(offset, end);
   }
   return { success: true, data: reports };
 }

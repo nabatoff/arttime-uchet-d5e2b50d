@@ -68,8 +68,11 @@ export interface AppData {
   categories: string[];
 }
 
+export type ApiErrorType = "network" | "server" | "timeout";
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
+  errorType?: ApiErrorType;
 }

@@ -7,28 +7,50 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, X, CalendarIcon } from "lucide-react";
-import { format, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
+import { format, isAfter, isBefore, startOfDay, endOfDay, subDays } from "date-fns";
 import { ru } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { MileageReport, User } from "@/types";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { useScrollReveal } from "@/hooks/useGsap";
+import { MileageListSkeleton } from "@/components/MileageCardSkeleton";
 
 const AdminMileage = () => {
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   useScrollReveal(listRef);
+  const defaultDateTo = endOfDay(new Date());
+  const defaultDateFrom = startOfDay(subDays(new Date(), 30));
   const [selectedDriver, setSelectedDriver] = useState<string>("all");
-  const [dateFrom, setDateFrom] = useState<Date | undefined>();
-  const [dateTo, setDateTo] = useState<Date | undefined>();
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(() => defaultDateFrom);
+  const [dateTo, setDateTo] = useState<Date | undefined>(() => defaultDateTo);
 
-  const { data: reports = [], isLoading: loadingReports } = useQuery({
-    queryKey: ["mileage"],
-    queryFn: async () => {
-      const result = await api.getMileage();
-      return result.success && result.data ? result.data : [] as MileageReport[];
+  const since = dateFrom ? startOfDay(dateFrom).toISOString() : undefined;
+  const until = dateTo ? endOfDay(dateTo).toISOString() : undefined;
+
+  const {
+    data: reportsData,
+    isLoading: loadingReports,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["mileage", since ?? "", until ?? ""],
+    queryFn: async ({ pageParam = 0 }) => {
+      const result = await api.getMileage(undefined, {
+        since,
+        until,
+        limit: 50,
+        offset: pageParam as number,
+      });
+      return result.success && result.data ? result.data : ([] as MileageReport[]);
     },
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length >= 50 ? allPages.length * 50 : undefined,
+    initialPageParam: 0,
   });
+
+  const reports = useMemo(() => reportsData?.pages.flat() ?? [], [reportsData]);
 
   const { data: drivers = [] } = useQuery({
     queryKey: ["drivers"],
@@ -100,9 +122,7 @@ const AdminMileage = () => {
       </div>
 
       {loadingReports ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        </div>
+        <MileageListSkeleton count={6} />
       ) : filtered.length === 0 ? (
         <p className="py-10 text-center text-muted-foreground">Нет отчетов</p>
       ) : (
@@ -125,6 +145,15 @@ const AdminMileage = () => {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {!loadingReports && hasNextPage && (
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" onClick={() => fetchNextPage()} disabled={isFetchingNextPage} className="gap-2">
+            {isFetchingNextPage ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Подгрузить ещё
+          </Button>
         </div>
       )}
 
