@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/services/api";
 import PageLayout from "@/components/PageLayout";
 import PhotoUpload from "@/components/PhotoUpload";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
