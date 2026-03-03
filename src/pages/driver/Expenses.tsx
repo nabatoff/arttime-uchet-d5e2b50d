@@ -51,6 +51,17 @@ const Expenses = () => {
     enabled: !!user,
   });
 
+  const { data: balances } = useQuery({
+    queryKey: ["balance", user?.id],
+    queryFn: async () => {
+      const result = await api.getBalance(user!.id);
+      if (result.success && result.data) return result.data;
+      return {} as Record<Currency, number>;
+    },
+    enabled: !!user,
+    staleTime: 60 * 1000,
+  });
+
   const { data: categories = [] } = useQuery({
     queryKey: ["appData"],
     queryFn: async () => {
@@ -154,6 +165,16 @@ const Expenses = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {user && (
+                <p className="text-xs text-muted-foreground">
+                  Текущий баланс:{" "}
+                  {(balances?.[currency] ?? 0).toLocaleString("ru-RU", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}{" "}
+                  {CURRENCY_SYMBOLS[currency]}
+                </p>
+              )}
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger className="h-12 bg-secondary">
                   <SelectValue placeholder="Категория" />

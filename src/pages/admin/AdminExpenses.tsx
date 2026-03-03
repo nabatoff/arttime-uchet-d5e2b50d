@@ -362,6 +362,21 @@ const AdminExpenses = () => {
                 ))}
               </div>
 
+              {addDriver && (
+                <p className="text-xs text-muted-foreground">
+                  Текущий баланс:{" "}
+                  {(() => {
+                    const driver = drivers.find((d) => String(d.id) === addDriver);
+                    const value = driver?.balances?.[addCurrency] ?? 0;
+                    return value.toLocaleString("ru-RU", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    });
+                  })()}{" "}
+                  {CURRENCY_SYMBOLS[addCurrency]}
+                </p>
+              )}
+
               {/* Comment */}
               <Input
                 placeholder="Комментарий"

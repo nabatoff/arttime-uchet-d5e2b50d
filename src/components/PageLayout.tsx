@@ -39,7 +39,7 @@ const PageLayout = ({ children, title }: PageLayoutProps) => {
         <header className="sticky top-0 z-40 glass-header border-b border-border/60 px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src={logo} alt="ArtTime" className="h-7 object-contain" />
+              <img src={logo} alt="ArtTime" className="h-8 object-contain" />
               <div className="h-5 w-px bg-border/60" />
               <h1 className="text-sm font-semibold text-foreground">{title}</h1>
             </div>
