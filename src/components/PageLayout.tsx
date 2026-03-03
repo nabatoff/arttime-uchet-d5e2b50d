@@ -33,11 +33,7 @@ const PageLayout = ({ children, title }: PageLayoutProps) => {
     setDesktopRefreshing(false);
   };
 
-  const content = isMobile ? (
-    <PullToRefresh onRefresh={handleRefresh}>{children}</PullToRefresh>
-  ) : (
-    children
-  );
+  const content = children;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
