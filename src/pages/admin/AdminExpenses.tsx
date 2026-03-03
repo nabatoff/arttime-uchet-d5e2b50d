@@ -158,10 +158,10 @@ const AdminExpenses = () => {
     setSaving(true);
 
     if (addType === "topup") {
-      // Top-up balance
+      // Top-up goes to pre-balance
       const driver = drivers.find((d) => String(d.id) === addDriver);
-      const currentBalance = driver?.balances?.[addCurrency] ?? 0;
-      await api.updateBalance(addDriver, addCurrency, currentBalance + Number(addAmount));
+      const currentPreBalance = driver?.preBalances?.[addCurrency] ?? 0;
+      await api.updatePreBalance(addDriver, addCurrency, currentPreBalance + Number(addAmount));
       // Save topup as expense record for history
       await api.addExpense({
         driverId: addDriver,

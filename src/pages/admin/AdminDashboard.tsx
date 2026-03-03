@@ -48,7 +48,7 @@ const AdminDashboard = () => {
     queryFn: async () => {
       const result = await api.getDrivers();
       if (result.success && result.data) {
-        return result.data.filter((d) => d.role.toLowerCase() !== "admin");
+        return result.data.filter((d) => d.role.toLowerCase() === "driver");
       }
       return [] as User[];
     },
@@ -159,6 +159,12 @@ const AdminDashboard = () => {
           </Button>
         </div>
 
+        {/* Main Balance */}
+        <div className="mb-2">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            Основной баланс
+          </h3>
+        </div>
         <div ref={cardsRef} className="space-y-3">
           {activeCurrencies.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">
@@ -185,6 +191,36 @@ const AdminDashboard = () => {
             })
           )}
         </div>
+
+        {/* Pre-Balance */}
+        {activeCurrencies.length > 0 && (
+          <>
+            <div className="mt-6 mb-2">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Предварительный баланс
+              </h3>
+            </div>
+            <div className="space-y-3">
+              {activeCurrencies.map((c) => {
+                const preBalance = selectedDriver?.preBalances?.[c] ?? 0;
+                return (
+                  <div key={`pre-${c}`} className="card-elevated rounded-2xl px-5 py-5 border-dashed border-primary/20">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{CURRENCY_LABELS[c]} (пред.)</p>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <p className={cn(
+                        "text-3xl font-bold font-display",
+                        preBalance === 0 ? "text-muted-foreground" : "text-primary"
+                      )}>
+                        {preBalance.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <span className="text-sm text-muted-foreground">{CURRENCY_SYMBOLS[c]}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {drivers.length > 1 && (
           <div className="mt-6 flex justify-center gap-1.5">

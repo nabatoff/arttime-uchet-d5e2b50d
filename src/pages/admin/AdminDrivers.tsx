@@ -36,7 +36,7 @@ const AdminDrivers = () => {
     queryFn: async () => {
       const result = await api.getDrivers();
       if (result.success && result.data) {
-        return result.data.filter((d) => d.role.toLowerCase() !== "admin");
+        return result.data.filter((d) => d.role.toLowerCase() !== "admin" && d.role.toLowerCase() !== "balance");
       }
       return [] as User[];
     },
