@@ -40,6 +40,8 @@ export interface Expense {
   currency: Currency;
   comment: string;
   receiptUrl: string;
+  /** Кто выполнил операцию (пополнение и т.д.) — заполняет бэкенд из performedByName */
+  performedBy?: string;
 }
 
 export interface MileageReport {

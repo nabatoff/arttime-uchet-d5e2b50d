@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { api } from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PageLayout from "@/components/PageLayout";
 import PhotoUpload from "@/components/PhotoUpload";
@@ -19,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useScrollReveal } from "@/hooks/useGsap";
 
 const AdminExpenses = () => {
+  const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
   const listRef = useRef<HTMLDivElement>(null);
   useScrollReveal(listRef);
@@ -157,33 +159,38 @@ const AdminExpenses = () => {
     }
     setSaving(true);
 
+    const operatorName = currentUser?.name ?? "";
+
     if (addType === "topup") {
-      // Top-up goes to pre-balance
       const driver = drivers.find((d) => String(d.id) === addDriver);
       const currentPreBalance = driver?.preBalances?.[addCurrency] ?? 0;
       await api.updatePreBalance(addDriver, addCurrency, currentPreBalance + Number(addAmount));
-      // Save topup as expense record for history
-      await api.addExpense({
-        driverId: addDriver,
-        date: new Date().toISOString(),
-        category: "Пополнение",
-        amount: Number(addAmount),
-        currency: addCurrency,
-        comment: addComment || "Пополнение баланса",
-        receiptUrl: "",
-      });
+      await api.addExpense(
+        {
+          driverId: addDriver,
+          date: new Date().toISOString(),
+          category: "Пополнение",
+          amount: Number(addAmount),
+          currency: addCurrency,
+          comment: addComment || "Пополнение предварительного баланса",
+          receiptUrl: "",
+        },
+        operatorName
+      );
       toast({ title: "Баланс пополнен" });
     } else {
-      // Add expense
-      await api.addExpense({
-        driverId: addDriver,
-        date: new Date().toISOString(),
-        category: addCategory || "Другое",
-        amount: Number(addAmount),
-        currency: addCurrency,
-        comment: addComment,
-        receiptUrl: addReceiptUrl,
-      });
+      await api.addExpense(
+        {
+          driverId: addDriver,
+          date: new Date().toISOString(),
+          category: addCategory || "Другое",
+          amount: Number(addAmount),
+          currency: addCurrency,
+          comment: addComment,
+          receiptUrl: addReceiptUrl,
+        },
+        operatorName
+      );
       toast({ title: "Расход добавлен" });
     }
 
@@ -206,6 +213,7 @@ const AdminExpenses = () => {
         "Сумма": e.amount,
         "Валюта": e.currency,
         "Комментарий": e.comment,
+        "Оператор": e.performedBy ?? "",
       }));
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
@@ -522,6 +530,9 @@ const AdminExpenses = () => {
                     </div>
                     {expense.comment && (
                       <p className="mt-1 truncate text-xs text-muted-foreground/80">{expense.comment}</p>
+                    )}
+                    {expense.performedBy && (
+                      <p className="mt-0.5 text-[11px] text-muted-foreground/70">Оператор: {expense.performedBy}</p>
                     )}
                   </div>
                 </div>

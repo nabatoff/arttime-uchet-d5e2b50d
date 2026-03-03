@@ -86,8 +86,8 @@ export const api = {
   getExpenses: (driverId: string, role?: string) =>
     apiPost<Expense[]>("getExpenses", { userId: driverId, role: role || "Driver" }),
 
-  // Save expense — action is "saveExpense"
-  addExpense: (expense: Omit<Expense, "id">) =>
+  // Save expense — action is "saveExpense". performedByName — имя того, кто вносит запись (админ/баланс).
+  addExpense: (expense: Omit<Expense, "id">, performedByName?: string) =>
     apiPost<Expense>("saveExpense", {
       userId: expense.driverId,
       category: expense.category,
@@ -95,6 +95,7 @@ export const api = {
       currency: expense.currency,
       comment: expense.comment,
       receiptUrl: expense.receiptUrl,
+      performedByName: performedByName ?? "",
     }),
 
   // Update expense
