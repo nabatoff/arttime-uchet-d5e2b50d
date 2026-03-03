@@ -135,15 +135,26 @@ const AdminDashboard = () => {
           </h2>
         </div>
 
-        <div className="mb-4 flex items-center justify-between">
-          <Button variant="ghost" size="icon" disabled={currentIndex === 0} onClick={() => switchDriver(currentIndex - 1)} className="text-muted-foreground">
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <Button variant="ghost" size="icon" disabled={currentIndex === 0} onClick={() => switchDriver(currentIndex - 1)} className="text-muted-foreground shrink-0">
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <div className="text-center">
-            <p className="text-lg font-bold text-foreground">{selectedDriver?.name}</p>
-            <p className="text-xs text-muted-foreground">{currentIndex + 1} / {drivers.length}</p>
-          </div>
-          <Button variant="ghost" size="icon" disabled={currentIndex === drivers.length - 1} onClick={() => switchDriver(currentIndex + 1)} className="text-muted-foreground">
+          <Select
+            value={String(currentIndex)}
+            onValueChange={(val) => switchDriver(Number(val))}
+          >
+            <SelectTrigger className="w-auto min-w-[140px] border-none bg-transparent shadow-none text-center font-bold text-foreground text-lg gap-1 justify-center">
+              <SelectValue>{selectedDriver?.name}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {drivers.map((d, i) => (
+                <SelectItem key={d.id || i} value={String(i)}>
+                  {d.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="ghost" size="icon" disabled={currentIndex === drivers.length - 1} onClick={() => switchDriver(currentIndex + 1)} className="text-muted-foreground shrink-0">
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
