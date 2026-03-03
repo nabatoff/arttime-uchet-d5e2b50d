@@ -249,14 +249,12 @@ const Expenses = () => {
                         {isTopup ? "+" : "−"}{expense.amount.toLocaleString("ru-RU")} {CURRENCY_SYMBOLS[expense.currency]}
                       </span>
                       {editable && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
+                        <button
                           onClick={() => openEdit(expense)}
-                          className="h-7 w-7 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-primary"
+                          className="h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-md text-muted-foreground opacity-0 transition-all group-hover:opacity-100 hover:bg-secondary hover:text-foreground"
                         >
                           <Pencil className="h-3.5 w-3.5" />
-                        </Button>
+                        </button>
                       )}
                     </div>
                     <div className="mt-0.5 flex items-center gap-1.5">
