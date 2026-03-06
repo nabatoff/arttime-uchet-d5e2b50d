@@ -30,7 +30,10 @@ function doPost(e) {
       createDriver: createDriver,
       deleteDriver: deleteDriver,
       updateDriver: updateDriver,
-      updateCurrencies: updateCurrencies
+      updateCurrencies: updateCurrencies,
+      saveCategory: saveCategory,
+      updateCategory: updateCategory,
+      deleteCategory: deleteCategory
     };
 
     if (!handlers[action]) {
@@ -155,11 +158,92 @@ function getAppData() {
     return { success: true, data: [] };
   }
   var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+  var noReceiptCol = headers.indexOf("noReceipt");
   var categories = [];
   for (var i = 1; i < rows.length; i++) {
-    if (rows[i][0]) categories.push(String(rows[i][0]));
+    if (rows[i][0]) {
+      categories.push({
+        name: String(rows[i][0]),
+        noReceipt: noReceiptCol !== -1 ? (rows[i][noReceiptCol] === true || rows[i][noReceiptCol] === "TRUE" || rows[i][noReceiptCol] === "true") : false
+      });
+    }
   }
   return { success: true, data: categories };
+}
+
+function saveCategory(body) {
+  var name = String(body.name || "").trim();
+  var noReceipt = body.noReceipt === true || body.noReceipt === "true";
+  if (!name) return { success: false, error: "Название не указано" };
+
+  var sheet = getSheet("Categories");
+  if (!sheet) {
+    sheet = getOrCreateSheet("Categories", ["name", "noReceipt"]);
+  }
+  // Ensure noReceipt column exists
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  if (headers.indexOf("noReceipt") === -1) {
+    sheet.getRange(1, headers.length + 1).setValue("noReceipt");
+  }
+
+  // Check duplicate
+  var rows = sheet.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]).trim().toLowerCase() === name.toLowerCase()) {
+      return { success: false, error: "Категория уже существует" };
+    }
+  }
+
+  sheet.appendRow([name, noReceipt ? "TRUE" : "FALSE"]);
+  return { success: true };
+}
+
+function updateCategory(body) {
+  var oldName = String(body.oldName || "").trim();
+  var newName = String(body.newName || "").trim();
+  var noReceipt = body.noReceipt === true || body.noReceipt === "true";
+
+  if (!oldName || !newName) return { success: false, error: "Название не указано" };
+
+  var sheet = getSheet("Categories");
+  if (!sheet) return { success: false, error: "Лист Categories не найден" };
+
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+  var noReceiptCol = headers.indexOf("noReceipt");
+
+  // Ensure noReceipt column
+  if (noReceiptCol === -1) {
+    sheet.getRange(1, headers.length + 1).setValue("noReceipt");
+    noReceiptCol = headers.length;
+  }
+
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]).trim() === oldName) {
+      sheet.getRange(i + 1, 1).setValue(newName);
+      sheet.getRange(i + 1, noReceiptCol + 1).setValue(noReceipt ? "TRUE" : "FALSE");
+      return { success: true };
+    }
+  }
+  return { success: false, error: "Категория не найдена" };
+}
+
+function deleteCategory(body) {
+  var name = String(body.name || "").trim();
+  if (!name) return { success: false, error: "Название не указано" };
+
+  var sheet = getSheet("Categories");
+  if (!sheet) return { success: false, error: "Лист Categories не найден" };
+
+  var rows = sheet.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]).trim() === name) {
+      sheet.deleteRow(i + 1);
+      return { success: true };
+    }
+  }
+  return { success: false, error: "Категория не найдена" };
 }
 
 // ==================== BALANCE ====================
