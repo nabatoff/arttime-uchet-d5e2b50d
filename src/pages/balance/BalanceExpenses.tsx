@@ -67,7 +67,7 @@ const BalanceExpenses = () => {
     queryKey: ["appData"],
     queryFn: async () => {
       const result = await api.getAppData();
-      return result.success && result.data ? result.data.categories : [] as string[];
+      return result.success && result.data ? result.data.categories : [] as import("@/types").CategoryInfo[];
     },
   });
 
@@ -156,7 +156,7 @@ const BalanceExpenses = () => {
               <SelectContent>
                 <SelectItem value="all">Все категории</SelectItem>
                 {categories.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                  <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
