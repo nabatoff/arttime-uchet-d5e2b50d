@@ -752,7 +752,11 @@ function deleteExpense(body) {
 
 // ==================== TRUCKS ====================
 
-function getTrucks() {
+/**
+ * Список тягачей. Если передан body.excludeBusyForDate (ISO или yyyy-MM-dd),
+ * из списка исключаются тягачи, уже выбранные кем-то в пробеге в этот день.
+ */
+function getTrucks(body) {
   var sheet = getSheet("Trucks");
   if (!sheet) {
     sheet = getOrCreateSheet("Trucks", ["name"]);
@@ -764,6 +768,28 @@ function getTrucks() {
       list.push({ id: String(rows[i][0]), name: String(rows[i][0]) });
     }
   }
+
+  var excludeDate = body && (body.excludeBusyForDate || body.date);
+  if (excludeDate) {
+    var targetKey = toDateKey(excludeDate);
+    var busyNames = {};
+    var mSheet = getSheet("Mileage");
+    if (mSheet && targetKey) {
+      var mRows = mSheet.getDataRange().getValues();
+      var mHeaders = mRows[0];
+      var truckCol = mHeaders.indexOf("truck");
+      var dateCol = mHeaders.indexOf("date");
+      if (truckCol !== -1 && dateCol !== -1) {
+        for (var j = 1; j < mRows.length; j++) {
+          if (toDateKey(mRows[j][dateCol]) !== targetKey) continue;
+          var t = mRows[j][truckCol];
+          if (t) busyNames[String(t).trim()] = true;
+        }
+      }
+    }
+    list = list.filter(function (t) { return !busyNames[t.name]; });
+  }
+
   return { success: true, data: list };
 }
 

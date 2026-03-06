@@ -158,8 +158,9 @@ export const api = {
   deleteExpense: (expenseId: string) =>
     apiPost("deleteExpense", { expenseId }),
 
-  // Trucks — список тягачей из листа Trucks
-  getTrucks: () => apiPost<Truck[]>("getTrucks", {}),
+  // Trucks — список тягачей. excludeBusyForDate (ISO или yyyy-MM-dd) — исключить тягачи, занятые в этот день в пробеге
+  getTrucks: (params?: { excludeBusyForDate?: string }) =>
+    apiPost<Truck[]>("getTrucks", params ?? {}),
 
   // Save mileage — action is "saveMileage"
   addMileage: (report: Omit<MileageReport, "id">) =>

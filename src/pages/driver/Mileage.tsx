@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { startOfDay } from "date-fns";
 
 const Mileage = () => {
   const { user } = useAuth();
@@ -20,10 +21,12 @@ const Mileage = () => {
   const [photoUrl, setPhotoUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const todayIso = startOfDay(new Date()).toISOString();
+
   const { data: trucks = [] } = useQuery({
-    queryKey: ["trucks"],
+    queryKey: ["trucks", "available", todayIso],
     queryFn: async () => {
-      const result = await api.getTrucks();
+      const result = await api.getTrucks({ excludeBusyForDate: todayIso });
       return result.success && result.data ? result.data : [];
     },
   });

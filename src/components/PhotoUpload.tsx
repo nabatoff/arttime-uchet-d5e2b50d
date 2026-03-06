@@ -52,7 +52,6 @@ const PhotoUpload = ({ onUpload, label = "Загрузить фото", classNam
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
       />
@@ -65,6 +64,7 @@ const PhotoUpload = ({ onUpload, label = "Загрузить фото", classNam
         >
           <Camera className="h-5 w-5" />
           <span className="text-sm font-medium">{label}</span>
+          <span className="text-[10px] opacity-80">(камера или галерея)</span>
         </button>
       ) : (
         <div className="relative overflow-hidden rounded-lg">
