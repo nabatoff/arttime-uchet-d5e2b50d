@@ -36,13 +36,25 @@ const BalanceDashboard = () => {
   const cardsRef = useRef<HTMLDivElement>(null);
 
   const { data: drivers = [], isLoading } = useQuery({
-    queryKey: ["drivers"],
+    queryKey: ["drivers", currentUser?.id],
     queryFn: async () => {
       const result = await api.getDrivers();
-      if (result.success && result.data) {
-        return result.data.filter((d) => d.role.toLowerCase() === "driver");
+      if (!result.success || !result.data) return [] as User[];
+      const all = result.data;
+
+      // Для роли balance: сначала показываем самого пользователя, потом всех водителей
+      if (currentUser && currentUser.role.toLowerCase() === "balance") {
+        const ordered: User[] = [];
+        const self = all.find((d) => String(d.id) === String(currentUser.id));
+        if (self) ordered.push(self);
+        ordered.push(
+          ...all.filter((d) => d.role.toLowerCase() === "driver"),
+        );
+        return ordered;
       }
-      return [] as User[];
+
+      // Для остальных — только водителей
+      return all.filter((d) => d.role.toLowerCase() === "driver");
     },
   });
 

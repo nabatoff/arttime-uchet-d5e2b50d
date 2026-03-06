@@ -1,24 +1,39 @@
 import { useState, useRef, useMemo } from "react";
 import { api } from "@/services/api";
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import PageLayout from "@/components/PageLayout";
 import { Button } from "@/components/ui/button";
-import { Loader2, Filter, X, CalendarIcon } from "lucide-react";
+import { Loader2, Filter, X, CalendarIcon, Plus } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User } from "@/types";
 import { format, startOfDay, endOfDay, subDays } from "date-fns";
 import { ru } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
+import PhotoUpload from "@/components/PhotoUpload";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useScrollReveal } from "@/hooks/useGsap";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const BalanceExpenses = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const listRef = useRef<HTMLDivElement>(null);
   useScrollReveal(listRef);
   const [showFilters, setShowFilters] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+
+  // Self-expense dialog state (for role balance)
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState<Currency>("KZT");
+  const [category, setCategory] = useState("");
+  const [comment, setComment] = useState("");
+  const [receiptUrl, setReceiptUrl] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const defaultDateTo = endOfDay(new Date());
   const defaultDateFrom = startOfDay(subDays(new Date(), 30));
@@ -105,9 +120,46 @@ const BalanceExpenses = () => {
 
   const hasActiveFilters = filterDriver !== "all" || filterCategory !== "all" || dateFrom || dateTo;
 
+  const activeCurrenciesForUser: Currency[] =
+    user?.availableCurrencies
+      ?.split(",")
+      .map((c) => c.trim())
+      .filter((c) => ALL_CURRENCIES.includes(c as Currency)) as Currency[] || ALL_CURRENCIES;
+
+  const selectedCategoryNoReceipt =
+    categories.find((c) => c.name === category)?.noReceipt ?? false;
+
+  const resetForm = () => {
+    setAmount("");
+    setCurrency(activeCurrenciesForUser[0] || "KZT");
+    setCategory("");
+    setComment("");
+    setReceiptUrl("");
+  };
+
+  const handleSave = async () => {
+    if (!user || !amount || !category || (!receiptUrl && !selectedCategoryNoReceipt)) return;
+    setSaving(true);
+    await api.addExpense({
+      driverId: user.id,
+      date: new Date().toISOString(),
+      amount: Number(amount),
+      currency,
+      category,
+      comment,
+      receiptUrl,
+    });
+    await queryClient.invalidateQueries({ queryKey: ["balanceExpenses"] as { queryKey: [string] } });
+    setSaving(false);
+    setDialogOpen(false);
+    resetForm();
+  };
+
+  const canSave = amount && category && (receiptUrl || selectedCategoryNoReceipt) && !saving;
+
   return (
     <PageLayout title="Расходы">
-      {/* Top actions — read-only, no add/export */}
+      {/* Top actions */}
       <div className="mb-4 flex items-center gap-1.5">
         <Button
           variant={showFilters ? "default" : "secondary"}
@@ -127,6 +179,85 @@ const BalanceExpenses = () => {
           <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-xs text-muted-foreground shrink-0">
             <X className="h-3 w-3" /> Сбросить
           </Button>
+        )}
+        <div className="flex-1 min-w-0" />
+        {user?.role === "balance" && (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-1.5 shrink-0">
+                <Plus className="h-4 w-4" />
+                Добавить
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="border-border bg-card text-foreground sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Новый расход (мой)</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input
+                  type="number"
+                  placeholder="Сумма"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="h-12 bg-secondary"
+                />
+                <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
+                  <SelectTrigger className="h-12 bg-secondary">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeCurrenciesForUser.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c} ({CURRENCY_SYMBOLS[c]})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="h-12 bg-secondary">
+                    <SelectValue placeholder="Категория" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => (
+                      <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  placeholder="Комментарий"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  className="h-12 bg-secondary"
+                />
+                {!selectedCategoryNoReceipt && (
+                  receiptUrl ? (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">Фото чека:</p>
+                      <div className="relative">
+                        <img src={receiptUrl} alt="Чек" className="h-32 w-full rounded-lg border border-border object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setReceiptUrl("")}
+                          className="absolute right-2 top-2 rounded-full bg-background/80 p-1 text-foreground"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <PhotoUpload label="Фото чека" onUpload={setReceiptUrl} />
+                  )
+                )}
+                <Button
+                  onClick={handleSave}
+                  disabled={!canSave}
+                  className="h-12 w-full text-base font-semibold"
+                >
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Сохранить"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
 
