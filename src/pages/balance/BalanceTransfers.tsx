@@ -222,12 +222,6 @@ const BalanceTransfers = () => {
                   </div>
                 </PopoverContent>
               </Popover>
-              {transfers.length > 0 && (
-                <Button variant="secondary" size="sm" onClick={exportToExcel} className="gap-1.5 shrink-0">
-                  <Download className="h-4 w-4" />
-                  Excel
-                </Button>
-              )}
             </div>
           </div>
           {loadingTransfers || loadingDrivers ? (
