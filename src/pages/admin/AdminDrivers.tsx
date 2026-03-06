@@ -53,8 +53,24 @@ const AdminDrivers = () => {
       ? [...current, currency]
       : current.filter((c) => c !== currency);
     const newStr = updated.join(",");
-    await api.updateDriverCurrencies(driver.id, newStr);
-    queryClient.invalidateQueries({ queryKey: ["drivers"] });
+
+    // Оптимистично обновляем кэш, чтобы свитч срабатывал мгновенно
+    const prevDrivers = queryClient.getQueryData<User[]>(["drivers"]);
+    queryClient.setQueryData<User[]>(["drivers"], (old) =>
+      old
+        ? old.map((d) =>
+            String(d.id) === String(driver.id)
+              ? { ...d, availableCurrencies: newStr }
+              : d,
+          )
+        : old,
+    );
+
+    const result = await api.updateDriverCurrencies(driver.id, newStr);
+    if (!result.success) {
+      // Откат к старому состоянию при ошибке
+      queryClient.setQueryData<User[]>(["drivers"], prevDrivers);
+    }
   };
 
   const handleCreateDriver = async () => {

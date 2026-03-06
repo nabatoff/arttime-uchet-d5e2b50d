@@ -952,9 +952,17 @@ function updateCurrencies(body) {
   var rows = sheet.getDataRange().getValues();
   var headers = rows[0];
   var col = headers.indexOf("availableCurrencies");
+  var legacyCol = headers.indexOf("currencies");
 
+  // Поддержка старых таблиц: если нет availableCurrencies, но есть currencies — используем её.
+  if (col === -1 && legacyCol !== -1) {
+    col = legacyCol;
+  }
+
+  // Если ни одной колонки нет — создаём availableCurrencies в конце.
   if (col === -1) {
-    return { success: false, error: "Колонка availableCurrencies не найдена" };
+    col = headers.length;
+    sheet.getRange(1, col + 1).setValue("availableCurrencies");
   }
 
   for (var i = 1; i < rows.length; i++) {
