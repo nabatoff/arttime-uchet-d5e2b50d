@@ -14,7 +14,8 @@ const PhotoUpload = ({ onUpload, label = "Загрузить фото", classNam
   const [preview, setPreview] = useState<string | null>(null);
   const [uploaded, setUploaded] = useState(false);
   const [error, setError] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -49,23 +50,42 @@ const PhotoUpload = ({ onUpload, label = "Загрузить фото", classNam
   return (
     <div className={cn("space-y-2", className)}>
       <input
-        ref={inputRef}
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => { e.target.files?.[0] && handleFile(e.target.files[0]); e.target.value = ""; }}
+      />
+      <input
+        ref={galleryRef}
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+        onChange={(e) => { e.target.files?.[0] && handleFile(e.target.files[0]); e.target.value = ""; }}
       />
 
       {!preview ? (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-card p-6 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-        >
-          <Camera className="h-5 w-5" />
-          <span className="text-sm font-medium">{label}</span>
-          <span className="text-[10px] opacity-80">(камера или галерея)</span>
-        </button>
+        <div className="space-y-2">
+          {label && <p className="text-xs font-medium text-muted-foreground">{label}</p>}
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
+          <button
+            type="button"
+            onClick={() => cameraRef.current?.click()}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-card py-4 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          >
+            <Camera className="h-5 w-5" />
+            <span className="text-sm font-medium">Сфотографировать</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => galleryRef.current?.click()}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-card py-4 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          >
+            <span className="text-sm font-medium">Из галереи</span>
+          </button>
+          </div>
+        </div>
       ) : (
         <div className="relative overflow-hidden rounded-lg">
           <img src={preview} alt="Превью" className="h-40 w-full object-cover" />
