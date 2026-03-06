@@ -8,7 +8,7 @@ import { Loader2, Filter, X, CalendarIcon, Plus } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User } from "@/types";
 import { format, startOfDay, endOfDay, subDays } from "date-fns";
 import { ru } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { cn, filterCategoriesByRole } from "@/lib/utils";
 import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
 import PhotoUpload from "@/components/PhotoUpload";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -85,6 +85,11 @@ const BalanceExpenses = () => {
       return result.success && result.data ? result.data.categories : [] as import("@/types").CategoryInfo[];
     },
   });
+
+  const categoriesForRole = useMemo(
+    () => filterCategoriesByRole(categories, user?.role ?? "balance"),
+    [categories, user?.role]
+  );
 
   const getDriverName = (driverId: string) => {
     const driver = drivers.find((d) => String(d.id) === String(driverId));
@@ -231,7 +236,7 @@ const BalanceExpenses = () => {
                     <SelectValue placeholder="Категория" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((c) => (
+                    {categoriesForRole.map((c) => (
                       <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>

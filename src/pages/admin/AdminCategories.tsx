@@ -6,11 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Loader2, ImageOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import type { CategoryInfo } from "@/types";
+import type { CategoryInfo, CategoryVisibleTo } from "@/types";
+
+const VISIBLE_TO_LABELS: Record<CategoryVisibleTo, string> = {
+  driver: "Водитель",
+  balance: "Balance",
+  both: "Оба",
+};
 
 const AdminCategories = () => {
   const queryClient = useQueryClient();
@@ -19,6 +26,7 @@ const AdminCategories = () => {
   const [editing, setEditing] = useState<CategoryInfo | null>(null);
   const [name, setName] = useState("");
   const [noReceipt, setNoReceipt] = useState(false);
+  const [visibleTo, setVisibleTo] = useState<CategoryVisibleTo>("both");
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
@@ -34,6 +42,7 @@ const AdminCategories = () => {
     setEditing(null);
     setName("");
     setNoReceipt(false);
+    setVisibleTo("both");
     setDialogOpen(true);
   };
 
@@ -41,6 +50,7 @@ const AdminCategories = () => {
     setEditing(cat);
     setName(cat.name);
     setNoReceipt(cat.noReceipt);
+    setVisibleTo(cat.visibleTo === "driver" || cat.visibleTo === "balance" ? cat.visibleTo : "both");
     setDialogOpen(true);
   };
 
@@ -48,10 +58,10 @@ const AdminCategories = () => {
     if (!name.trim()) return;
     setSaving(true);
     if (editing) {
-      await api.updateCategory(editing.name, name.trim(), noReceipt);
+      await api.updateCategory(editing.name, name.trim(), noReceipt, visibleTo);
       toast({ title: "Категория обновлена" });
     } else {
-      await api.saveCategory(name.trim(), noReceipt);
+      await api.saveCategory(name.trim(), noReceipt, visibleTo);
       toast({ title: "Категория создана" });
     }
     setSaving(false);
@@ -91,7 +101,7 @@ const AdminCategories = () => {
                 "shadow-[var(--card-shadow)]"
               )}
             >
-              <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center gap-3 min-w-0 flex-wrap">
                 <span className="text-sm font-medium truncate">{cat.name}</span>
                 {cat.noReceipt && (
                   <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground shrink-0">
@@ -99,6 +109,9 @@ const AdminCategories = () => {
                     Без чека
                   </span>
                 )}
+                <span className="inline-flex rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground shrink-0">
+                  {VISIBLE_TO_LABELS[cat.visibleTo === "driver" || cat.visibleTo === "balance" ? cat.visibleTo : "both"]}
+                </span>
               </div>
               <div className="flex items-center gap-0.5 shrink-0">
                 <button
@@ -140,6 +153,19 @@ const AdminCategories = () => {
                 <p className="text-xs text-muted-foreground">Не запрашивать фото при занесении расхода</p>
               </div>
               <Switch checked={noReceipt} onCheckedChange={setNoReceipt} />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Видна для роли</p>
+              <Select value={visibleTo} onValueChange={(v) => setVisibleTo(v as CategoryVisibleTo)}>
+                <SelectTrigger className="h-10 bg-secondary">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="both">{VISIBLE_TO_LABELS.both}</SelectItem>
+                  <SelectItem value="driver">{VISIBLE_TO_LABELS.driver}</SelectItem>
+                  <SelectItem value="balance">{VISIBLE_TO_LABELS.balance}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <Button
               onClick={handleSave}

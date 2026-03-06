@@ -11,7 +11,7 @@ import { Loader2, Plus, Pencil, X } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, type Currency, type Expense } from "@/types";
 import { format, isToday, subDays, isAfter, startOfDay } from "date-fns";
 import { ru } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { cn, filterCategoriesByRole } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useScrollReveal } from "@/hooks/useGsap";
 import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
@@ -78,6 +78,7 @@ const Expenses = () => {
     },
   });
 
+  const categoriesForRole = filterCategoriesByRole(categories, user?.role ?? "driver");
   const selectedCategoryNoReceipt = categories.find((c) => c.name === category)?.noReceipt ?? false;
 
   const loading = loadingExpenses;
@@ -189,7 +190,7 @@ const Expenses = () => {
                   <SelectValue placeholder="Категория" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((c) => (
+                  {categoriesForRole.map((c) => (
                     <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>

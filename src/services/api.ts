@@ -88,20 +88,27 @@ export const api = {
     const result = await apiPost<CategoryInfo[]>("getAppData");
     if (result.success && result.data) {
       // Backward compat: if backend returns string[], convert
-      const cats: CategoryInfo[] = (result.data as unknown[]).map((c) =>
-        typeof c === "string" ? { name: c, noReceipt: false } : c as CategoryInfo
-      );
+      const cats: CategoryInfo[] = (result.data as unknown[]).map((c) => {
+        if (typeof c === "string") return { name: c, noReceipt: false, visibleTo: "both" as const };
+        const x = c as Record<string, unknown>;
+        const vt = (x.visibleTo as string)?.toLowerCase();
+        return {
+          name: String(x.name),
+          noReceipt: !!x.noReceipt,
+          visibleTo: vt === "driver" || vt === "balance" ? vt : "both",
+        } as CategoryInfo;
+      });
       return { success: true, data: { categories: cats } };
     }
     return { success: false, error: "Ошибка загрузки данных" };
   },
 
   // Category CRUD
-  saveCategory: (name: string, noReceipt: boolean) =>
-    apiPost("saveCategory", { name, noReceipt }),
+  saveCategory: (name: string, noReceipt: boolean, visibleTo?: "driver" | "balance" | "both") =>
+    apiPost("saveCategory", { name, noReceipt, visibleTo: visibleTo || "both" }),
 
-  updateCategory: (oldName: string, newName: string, noReceipt: boolean) =>
-    apiPost("updateCategory", { oldName, newName, noReceipt }),
+  updateCategory: (oldName: string, newName: string, noReceipt: boolean, visibleTo?: "driver" | "balance" | "both") =>
+    apiPost("updateCategory", { oldName, newName, noReceipt, visibleTo: visibleTo || "both" }),
 
   deleteCategory: (name: string) =>
     apiPost("deleteCategory", { name }),

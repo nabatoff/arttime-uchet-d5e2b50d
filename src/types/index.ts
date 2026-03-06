@@ -64,9 +64,13 @@ export interface TransferRecord {
   performedBy: string;
 }
 
+export type CategoryVisibleTo = "driver" | "balance" | "both";
+
 export interface CategoryInfo {
   name: string;
   noReceipt: boolean;
+  /** Кому видна категория: водитель, balance или оба. По умолчанию "both". */
+  visibleTo?: CategoryVisibleTo;
 }
 
 export interface AppData {

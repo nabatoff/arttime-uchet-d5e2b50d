@@ -160,12 +160,16 @@ function getAppData() {
   var rows = sheet.getDataRange().getValues();
   var headers = rows[0];
   var noReceiptCol = headers.indexOf("noReceipt");
+  var visibleToCol = headers.indexOf("visibleTo");
   var categories = [];
   for (var i = 1; i < rows.length; i++) {
     if (rows[i][0]) {
+      var vt = visibleToCol !== -1 && rows[i][visibleToCol] ? String(rows[i][visibleToCol]).toLowerCase() : "both";
+      if (vt !== "driver" && vt !== "balance") vt = "both";
       categories.push({
         name: String(rows[i][0]),
-        noReceipt: noReceiptCol !== -1 ? (rows[i][noReceiptCol] === true || rows[i][noReceiptCol] === "TRUE" || rows[i][noReceiptCol] === "true") : false
+        noReceipt: noReceiptCol !== -1 ? (rows[i][noReceiptCol] === true || rows[i][noReceiptCol] === "TRUE" || rows[i][noReceiptCol] === "true") : false,
+        visibleTo: vt
       });
     }
   }
@@ -175,19 +179,23 @@ function getAppData() {
 function saveCategory(body) {
   var name = String(body.name || "").trim();
   var noReceipt = body.noReceipt === true || body.noReceipt === "true";
+  var visibleTo = String(body.visibleTo || "both").toLowerCase();
+  if (visibleTo !== "driver" && visibleTo !== "balance") visibleTo = "both";
   if (!name) return { success: false, error: "Название не указано" };
 
   var sheet = getSheet("Categories");
   if (!sheet) {
-    sheet = getOrCreateSheet("Categories", ["name", "noReceipt"]);
+    sheet = getOrCreateSheet("Categories", ["name", "noReceipt", "visibleTo"]);
   }
-  // Ensure noReceipt column exists
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   if (headers.indexOf("noReceipt") === -1) {
     sheet.getRange(1, headers.length + 1).setValue("noReceipt");
+    headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  }
+  if (headers.indexOf("visibleTo") === -1) {
+    sheet.getRange(1, headers.length + 1).setValue("visibleTo");
   }
 
-  // Check duplicate
   var rows = sheet.getDataRange().getValues();
   for (var i = 1; i < rows.length; i++) {
     if (String(rows[i][0]).trim().toLowerCase() === name.toLowerCase()) {
@@ -195,7 +203,7 @@ function saveCategory(body) {
     }
   }
 
-  sheet.appendRow([name, noReceipt ? "TRUE" : "FALSE"]);
+  sheet.appendRow([name, noReceipt ? "TRUE" : "FALSE", visibleTo]);
   return { success: true };
 }
 
@@ -203,6 +211,8 @@ function updateCategory(body) {
   var oldName = String(body.oldName || "").trim();
   var newName = String(body.newName || "").trim();
   var noReceipt = body.noReceipt === true || body.noReceipt === "true";
+  var visibleTo = String(body.visibleTo || "both").toLowerCase();
+  if (visibleTo !== "driver" && visibleTo !== "balance") visibleTo = "both";
 
   if (!oldName || !newName) return { success: false, error: "Название не указано" };
 
@@ -212,17 +222,23 @@ function updateCategory(body) {
   var rows = sheet.getDataRange().getValues();
   var headers = rows[0];
   var noReceiptCol = headers.indexOf("noReceipt");
+  var visibleToCol = headers.indexOf("visibleTo");
 
-  // Ensure noReceipt column
   if (noReceiptCol === -1) {
     sheet.getRange(1, headers.length + 1).setValue("noReceipt");
     noReceiptCol = headers.length;
+    headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  }
+  if (visibleToCol === -1) {
+    sheet.getRange(1, headers.length + 1).setValue("visibleTo");
+    visibleToCol = headers.length;
   }
 
   for (var i = 1; i < rows.length; i++) {
     if (String(rows[i][0]).trim() === oldName) {
       sheet.getRange(i + 1, 1).setValue(newName);
       sheet.getRange(i + 1, noReceiptCol + 1).setValue(noReceipt ? "TRUE" : "FALSE");
+      sheet.getRange(i + 1, visibleToCol + 1).setValue(visibleTo);
       return { success: true };
     }
   }
