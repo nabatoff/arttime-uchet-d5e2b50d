@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "@/config";
-import type { ApiResponse, ApiErrorType, AppData, Expense, MileageReport, User, Currency, UserRole, TransferRecord } from "@/types";
+import type { ApiResponse, ApiErrorType, AppData, CategoryInfo, Expense, MileageReport, User, Currency, UserRole, TransferRecord } from "@/types";
 
 const FETCH_TIMEOUT_MS = 15000;
 const RETRY_DELAY_MS = 1000;
@@ -85,12 +85,26 @@ export const api = {
 
   // Categories — returns { success, categories }
   getAppData: async (): Promise<ApiResponse<AppData>> => {
-    const result = await apiPost<string[]>("getAppData");
+    const result = await apiPost<CategoryInfo[]>("getAppData");
     if (result.success && result.data) {
-      return { success: true, data: { categories: result.data as string[] } };
+      // Backward compat: if backend returns string[], convert
+      const cats: CategoryInfo[] = (result.data as unknown[]).map((c) =>
+        typeof c === "string" ? { name: c, noReceipt: false } : c as CategoryInfo
+      );
+      return { success: true, data: { categories: cats } };
     }
     return { success: false, error: "Ошибка загрузки данных" };
   },
+
+  // Category CRUD
+  saveCategory: (name: string, noReceipt: boolean) =>
+    apiPost("saveCategory", { name, noReceipt }),
+
+  updateCategory: (oldName: string, newName: string, noReceipt: boolean) =>
+    apiPost("updateCategory", { oldName, newName, noReceipt }),
+
+  deleteCategory: (name: string) =>
+    apiPost("deleteCategory", { name }),
 
   // Balance — returns { success, balances }
   getBalance: (driverId: string) =>

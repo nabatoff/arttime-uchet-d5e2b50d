@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Wallet, Receipt, Gauge, LayoutDashboard, Users, ArrowLeftRight } from "lucide-react";
+import { Wallet, Receipt, Gauge, LayoutDashboard, Users, ArrowLeftRight, Tags } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMileageGate } from "@/contexts/MileageGateContext";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ const adminTabs = [
   { path: "/admin/expenses", label: "Расходы", icon: Receipt },
   { path: "/admin/mileage", label: "Пробег", icon: Gauge },
   { path: "/admin/drivers", label: "Водители", icon: Users },
+  { path: "/admin/categories", label: "Категории", icon: Tags },
 ];
 
 const balanceTabs = [

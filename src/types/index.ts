@@ -64,8 +64,13 @@ export interface TransferRecord {
   performedBy: string;
 }
 
+export interface CategoryInfo {
+  name: string;
+  noReceipt: boolean;
+}
+
 export interface AppData {
-  categories: string[];
+  categories: CategoryInfo[];
 }
 
 export type ApiErrorType = "network" | "server" | "timeout";

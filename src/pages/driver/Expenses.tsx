@@ -67,9 +67,11 @@ const Expenses = () => {
     queryFn: async () => {
       const result = await api.getAppData();
       if (result.success && result.data) return result.data.categories;
-      return [] as string[];
+      return [] as import("@/types").CategoryInfo[];
     },
   });
+
+  const selectedCategoryNoReceipt = categories.find((c) => c.name === category)?.noReceipt ?? false;
 
   const loading = loadingExpenses;
 
@@ -98,7 +100,7 @@ const Expenses = () => {
   };
 
   const handleSave = async () => {
-    if (!user || !amount || !category || !receiptUrl) return;
+    if (!user || !amount || !category || (!receiptUrl && !selectedCategoryNoReceipt)) return;
     setSaving(true);
 
     if (editingExpense) {
@@ -128,7 +130,7 @@ const Expenses = () => {
     resetForm();
   };
 
-  const canSave = amount && category && receiptUrl && !saving;
+  const canSave = amount && category && (receiptUrl || selectedCategoryNoReceipt) && !saving;
 
   return (
     <PageLayout title="Расходы">
@@ -181,7 +183,7 @@ const Expenses = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                    <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -191,22 +193,24 @@ const Expenses = () => {
                 onChange={(e) => setComment(e.target.value)}
                 className="h-12 bg-secondary"
               />
-              {receiptUrl ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">Фото чека:</p>
-                  <div className="relative">
-                    <img src={receiptUrl} alt="Чек" className="h-32 w-full rounded-lg border border-border object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setReceiptUrl("")}
-                      className="absolute right-2 top-2 rounded-full bg-background/80 p-1 text-foreground"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
+              {!selectedCategoryNoReceipt && (
+                receiptUrl ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Фото чека:</p>
+                    <div className="relative">
+                      <img src={receiptUrl} alt="Чек" className="h-32 w-full rounded-lg border border-border object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setReceiptUrl("")}
+                        className="absolute right-2 top-2 rounded-full bg-background/80 p-1 text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <PhotoUpload label="Фото чека" onUpload={setReceiptUrl} />
+                ) : (
+                  <PhotoUpload label="Фото чека" onUpload={setReceiptUrl} />
+                )
               )}
               <Button
                 onClick={handleSave}

@@ -92,9 +92,11 @@ const AdminExpenses = () => {
     queryKey: ["appData"],
     queryFn: async () => {
       const result = await api.getAppData();
-      return result.success && result.data ? result.data.categories : [] as string[];
+      return result.success && result.data ? result.data.categories : [] as import("@/types").CategoryInfo[];
     },
   });
+
+  const addCategoryNoReceipt = categories.find((c) => c.name === addCategory)?.noReceipt ?? false;
 
   const loading = loadingExpenses;
 
@@ -331,7 +333,7 @@ const AdminExpenses = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                      <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -385,12 +387,12 @@ const AdminExpenses = () => {
                 className="bg-secondary border-border"
               />
 
-              {/* Receipt photo (only for expense) */}
-              {addType === "expense" && (
+              {/* Receipt photo (only for expense, unless noReceipt) */}
+              {addType === "expense" && !addCategoryNoReceipt && (
                 <PhotoUpload label="Фото чека" onUpload={setAddReceiptUrl} />
               )}
 
-              <Button className="w-full" onClick={handleAddExpense} disabled={saving || (addType === "expense" && !addReceiptUrl)}>
+              <Button className="w-full" onClick={handleAddExpense} disabled={saving || (addType === "expense" && !addCategoryNoReceipt && !addReceiptUrl)}>
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {addType === "topup" ? "Пополнить" : "Сохранить расход"}
               </Button>
@@ -428,7 +430,7 @@ const AdminExpenses = () => {
               <SelectContent>
                 <SelectItem value="all">Все категории</SelectItem>
                 {categories.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                  <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -624,7 +626,7 @@ const AdminExpenses = () => {
               <SelectContent>
                 <SelectItem value="Пополнение">Пополнение</SelectItem>
                 {categories.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                  <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
