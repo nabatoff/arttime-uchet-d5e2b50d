@@ -84,7 +84,9 @@ const AdminExpenses = () => {
     queryKey: ["drivers"],
     queryFn: async () => {
       const result = await api.getDrivers();
-      return result.success && result.data ? result.data.filter((d) => d.role.toLowerCase() !== "admin") : [] as User[];
+      return result.success && result.data
+        ? result.data.filter((d) => (d.role ?? "").toString().toLowerCase() !== "admin")
+        : [] as User[];
     },
   });
 
@@ -92,7 +94,8 @@ const AdminExpenses = () => {
     queryKey: ["appData"],
     queryFn: async () => {
       const result = await api.getAppData();
-      return result.success && result.data ? result.data.categories : [] as import("@/types").CategoryInfo[];
+      const cats = result.success && result.data && Array.isArray(result.data.categories) ? result.data.categories : [];
+      return cats as import("@/types").CategoryInfo[];
     },
   });
 

@@ -85,22 +85,22 @@ export const api = {
 
   // Categories — returns { success, categories }
   getAppData: async (): Promise<ApiResponse<AppData>> => {
-    const result = await apiPost<CategoryInfo[]>("getAppData");
-    if (result.success && result.data) {
-      // Backward compat: if backend returns string[], convert
-      const cats: CategoryInfo[] = (result.data as unknown[]).map((c) => {
-        if (typeof c === "string") return { name: c, noReceipt: false, visibleTo: "both" as const };
-        const x = c as Record<string, unknown>;
-        const vt = (x.visibleTo as string)?.toLowerCase();
-        return {
-          name: String(x.name),
-          noReceipt: !!x.noReceipt,
-          visibleTo: vt === "driver" || vt === "balance" ? vt : "both",
-        } as CategoryInfo;
-      });
-      return { success: true, data: { categories: cats } };
-    }
-    return { success: false, error: "Ошибка загрузки данных" };
+    const result = await apiPost<unknown>("getAppData");
+    if (!result.success) return { success: false, error: result.error ?? "Ошибка загрузки данных" };
+    // Бэкенд возвращает { success, data: CategoryInfo[] }; data может быть массивом или объектом
+    const raw = result.data;
+    const arr = Array.isArray(raw) ? raw : (raw && typeof raw === "object" && "categories" in raw ? (raw as { categories: unknown[] }).categories : []);
+    const cats: CategoryInfo[] = Array.isArray(arr) ? arr.map((c) => {
+      if (typeof c === "string") return { name: c, noReceipt: false, visibleTo: "both" as const };
+      const x = (c && typeof c === "object" ? c : {}) as Record<string, unknown>;
+      const vt = (x.visibleTo as string)?.toLowerCase();
+      return {
+        name: String(x.name ?? ""),
+        noReceipt: !!x.noReceipt,
+        visibleTo: vt === "driver" || vt === "balance" ? vt : "both",
+      } as CategoryInfo;
+    }) : [];
+    return { success: true, data: { categories: cats } };
   },
 
   // Category CRUD
