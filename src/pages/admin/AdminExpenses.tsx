@@ -7,7 +7,7 @@ import PhotoUpload from "@/components/PhotoUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Filter, X, Plus, CalendarIcon, Pencil, Trash2, Download } from "lucide-react";
-import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User } from "@/types";
+import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User, type TransferRecord } from "@/types";
 import { format, startOfDay, endOfDay, subDays } from "date-fns";
 import { ru } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -114,6 +114,27 @@ const AdminExpenses = () => {
     if (filterDriver !== "all" && String(e.driverId) !== filterDriver) return false;
     if (filterCategory !== "all" && e.category !== filterCategory) return false;
     return true;
+  });
+
+  const sortedExpenses = useMemo(
+    () =>
+      [...filtered].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      ),
+    [filtered],
+  );
+
+  const { data: transfers = [], isLoading: loadingTransfers } = useQuery({
+    queryKey: ["transfers-admin"],
+    queryFn: async () => {
+      const result = await api.getTransfers();
+      if (result.success && result.data) {
+        return [...result.data].sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+        ) as TransferRecord[];
+      }
+      return [] as TransferRecord[];
+    },
   });
 
   const summaryByCurrency = useMemo(() => {
@@ -519,9 +540,9 @@ const AdminExpenses = () => {
       ) : (
         <div ref={listRef} className="space-y-3">
           <p className="mb-2 text-xs text-muted-foreground">
-            Найдено: {filtered.length}
+            Найдено: {sortedExpenses.length}
           </p>
-          {filtered.map((expense) => {
+          {sortedExpenses.map((expense) => {
             const expDate = new Date(expense.date);
             const isTopup = expense.category === "Пополнение";
             return (
@@ -611,6 +632,43 @@ const AdminExpenses = () => {
           </Button>
         </div>
       )}
+
+      {/* Transfers history */}
+      <div className="mt-8 space-y-3">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          История переводов
+        </h3>
+        {loadingTransfers ? (
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
+        ) : transfers.length === 0 ? (
+          <p className="py-4 text-sm text-muted-foreground">Переводов нет</p>
+        ) : (
+          <div className="space-y-2">
+            {transfers.map((t) => (
+              <div key={t.id} className="rounded-xl border border-border/60 bg-card p-3 shadow-[var(--card-shadow)]">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium text-foreground">{getDriverName(t.fromDriverId)}</span>
+                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="font-medium text-foreground">{getDriverName(t.toDriverId)}</span>
+                </div>
+                <div className="mt-1 flex items-center justify-between">
+                  <span className="text-sm font-bold text-primary">
+                    {Number(t.amount).toLocaleString("ru-RU")} {CURRENCY_SYMBOLS[t.currency]}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {format(new Date(t.date), "dd MMM, HH:mm", { locale: ru })}
+                  </span>
+                </div>
+                {t.performedBy && (
+                  <p className="mt-0.5 text-[11px] text-muted-foreground/70">Оператор: {t.performedBy}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Edit dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

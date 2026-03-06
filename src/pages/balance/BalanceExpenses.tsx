@@ -97,6 +97,14 @@ const BalanceExpenses = () => {
     return true;
   });
 
+  const sortedExpenses = useMemo(
+    () =>
+      [...filtered].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      ),
+    [filtered],
+  );
+
   const summaryByCurrency = useMemo(() => {
     const expenses: Record<string, number> = {};
     const topups: Record<string, number> = {};
@@ -349,14 +357,14 @@ const BalanceExpenses = () => {
       {/* Results — read-only cards */}
       {loadingExpenses ? (
         <ExpenseListSkeleton count={6} />
-      ) : filtered.length === 0 ? (
+      ) : sortedExpenses.length === 0 ? (
         <p className="py-10 text-center text-muted-foreground">
           {hasActiveFilters ? "Нет расходов по выбранным фильтрам" : "Нет расходов"}
         </p>
       ) : (
         <div ref={listRef} className="space-y-3">
-          <p className="mb-2 text-xs text-muted-foreground">Найдено: {filtered.length}</p>
-          {filtered.map((expense) => {
+          <p className="mb-2 text-xs text-muted-foreground">Найдено: {sortedExpenses.length}</p>
+          {sortedExpenses.map((expense) => {
             const expDate = new Date(expense.date);
             const isTopup = expense.category === "Пополнение";
             return (

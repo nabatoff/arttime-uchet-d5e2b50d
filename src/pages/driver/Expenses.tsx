@@ -230,7 +230,12 @@ const Expenses = () => {
         <p className="py-10 text-center text-muted-foreground">Нет расходов за последние 3 дня</p>
       ) : (
         <div ref={listRef} className="space-y-3">
-          {expenses.map((expense) => {
+          {[...expenses]
+            .sort(
+              (a, b) =>
+                new Date(b.date).getTime() - new Date(a.date).getTime(),
+            )
+            .map((expense) => {
             const expenseDate = new Date(expense.date);
             const editable = isToday(expenseDate) && expense.category !== "Пополнение";
             const isTopup = expense.category === "Пополнение";
