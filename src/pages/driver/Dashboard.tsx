@@ -31,10 +31,17 @@ const Dashboard = () => {
   const greetingRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
 
-  const activeCurrencies = user?.availableCurrencies
-    ?.split(",")
-    .map((c) => c.trim())
-    .filter((c) => ALL_CURRENCIES.includes(c as Currency)) as Currency[] || [];
+  const activeCurrencies: Currency[] =
+    (() => {
+      const raw =
+        user?.availableCurrencies
+          ?.split(",")
+          .map((c) => c.trim())
+          .filter((c) => ALL_CURRENCIES.includes(c as Currency)) as
+        | Currency[]
+        | undefined;
+      return raw && raw.length > 0 ? raw : ALL_CURRENCIES;
+    })();
 
   const { data: balances, isLoading } = useQuery({
     queryKey: ["balance", user?.id],

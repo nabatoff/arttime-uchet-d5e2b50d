@@ -33,10 +33,17 @@ const Expenses = () => {
   const [receiptUrl, setReceiptUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const activeCurrencies = user?.availableCurrencies
-    ?.split(",")
-    .map((c) => c.trim())
-    .filter((c) => ALL_CURRENCIES.includes(c as Currency)) as Currency[] || ALL_CURRENCIES;
+  const activeCurrencies: Currency[] =
+    (() => {
+      const raw =
+        user?.availableCurrencies
+          ?.split(",")
+          .map((c) => c.trim())
+          .filter((c) => ALL_CURRENCIES.includes(c as Currency)) as
+        | Currency[]
+        | undefined;
+      return raw && raw.length > 0 ? raw : ALL_CURRENCIES;
+    })();
 
   const { data: expenses = [], isLoading: loadingExpenses } = useQuery({
     queryKey: ["expenses", user?.id],

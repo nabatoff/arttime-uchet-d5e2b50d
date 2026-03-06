@@ -128,11 +128,16 @@ const BalanceExpenses = () => {
 
   const hasActiveFilters = filterDriver !== "all" || filterCategory !== "all" || dateFrom || dateTo;
 
-  const activeCurrenciesForUser: Currency[] =
-    user?.availableCurrencies
-      ?.split(",")
-      .map((c) => c.trim())
-      .filter((c) => ALL_CURRENCIES.includes(c as Currency)) as Currency[] || ALL_CURRENCIES;
+  const activeCurrenciesForUser: Currency[] = useMemo(() => {
+    const raw =
+      user?.availableCurrencies
+        ?.split(",")
+        .map((c) => c.trim())
+        .filter((c) => ALL_CURRENCIES.includes(c as Currency)) as
+        | Currency[]
+        | undefined;
+    return raw && raw.length > 0 ? raw : ALL_CURRENCIES;
+  }, [user?.availableCurrencies]);
 
   const selectedCategoryNoReceipt =
     categories.find((c) => c.name === category)?.noReceipt ?? false;
@@ -211,7 +216,7 @@ const BalanceExpenses = () => {
                 />
                 <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
                   <SelectTrigger className="h-12 bg-secondary">
-                    <SelectValue />
+                    <SelectValue placeholder="Валюта" />
                   </SelectTrigger>
                   <SelectContent>
                     {activeCurrenciesForUser.map((c) => (
