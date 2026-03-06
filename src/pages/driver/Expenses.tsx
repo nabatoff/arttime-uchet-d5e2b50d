@@ -294,10 +294,16 @@ const Expenses = () => {
                         </button>
                       )}
                     </div>
-                    <div className="mt-0.5 flex items-center gap-1.5">
+                    <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
                       <span className="inline-flex items-center rounded-md bg-secondary/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                         {expense.category}
                       </span>
+                      {expense.truck && (
+                        <>
+                          <span className="text-[11px] text-muted-foreground/60">·</span>
+                          <span className="text-[11px] text-muted-foreground/80">{expense.truck}</span>
+                        </>
+                      )}
                       <span className="text-[11px] text-muted-foreground/60">·</span>
                       <span className="text-[11px] text-muted-foreground/60">
                         {format(expenseDate, "dd MMM, HH:mm", { locale: ru })}

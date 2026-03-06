@@ -42,6 +42,13 @@ export interface Expense {
   receiptUrl: string;
   /** Кто выполнил операцию (пополнение и т.д.) — заполняет бэкенд из performedByName */
   performedBy?: string;
+  /** Тягач (из листа Trucks), подставляется из пробега за день или вручную */
+  truck?: string;
+}
+
+export interface Truck {
+  id: string;
+  name: string;
 }
 
 export interface MileageReport {
@@ -52,6 +59,8 @@ export interface MileageReport {
   date: string;
   km: number;
   photoUrl: string;
+  /** Выбранный тягач при вводе пробега */
+  truck?: string;
 }
 
 export interface TransferRecord {

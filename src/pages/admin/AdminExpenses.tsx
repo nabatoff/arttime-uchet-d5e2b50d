@@ -41,6 +41,8 @@ const AdminExpenses = () => {
   const [editAmount, setEditAmount] = useState("");
   const [editCurrency, setEditCurrency] = useState<Currency>("KZT");
   const [editComment, setEditComment] = useState("");
+  const [editTruck, setEditTruck] = useState("");
+  const [addTruck, setAddTruck] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const { toast } = useToast();
@@ -96,6 +98,14 @@ const AdminExpenses = () => {
       const result = await api.getAppData();
       const cats = result.success && result.data && Array.isArray(result.data.categories) ? result.data.categories : [];
       return cats as import("@/types").CategoryInfo[];
+    },
+  });
+
+  const { data: trucks = [] } = useQuery({
+    queryKey: ["trucks"],
+    queryFn: async () => {
+      const result = await api.getTrucks();
+      return result.success && result.data ? result.data : [];
     },
   });
 
@@ -174,6 +184,7 @@ const AdminExpenses = () => {
     setEditAmount(String(expense.amount));
     setEditCurrency(expense.currency);
     setEditComment(expense.comment);
+    setEditTruck(expense.truck ?? "");
     setEditOpen(true);
   };
 
@@ -186,6 +197,7 @@ const AdminExpenses = () => {
       amount: Number(editAmount),
       currency: editCurrency,
       comment: editComment,
+      truck: editTruck || undefined,
     });
     toast({ title: "Запись обновлена" });
     setSaving(false);
@@ -239,6 +251,7 @@ const AdminExpenses = () => {
           currency: addCurrency,
           comment: addComment,
           receiptUrl: addReceiptUrl,
+          truck: addTruck || undefined,
         },
         operatorName
       );
@@ -261,6 +274,7 @@ const AdminExpenses = () => {
         "Водитель": getDriverName(e.driverId),
         "Логин": getDriverLogin(e.driverId),
         "Категория": e.category,
+        "Тягач": e.truck ?? "",
         "Сумма": e.amount,
         "Валюта": e.currency,
         "Комментарий": e.comment,
@@ -358,6 +372,20 @@ const AdminExpenses = () => {
                   <SelectContent>
                     {categories.map((c) => (
                       <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {addType === "expense" && (
+                <Select value={addTruck} onValueChange={setAddTruck}>
+                  <SelectTrigger className="bg-secondary border-border">
+                    <SelectValue placeholder="Тягач (необязательно)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">—</SelectItem>
+                    {trucks.map((t) => (
+                      <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -604,10 +632,16 @@ const AdminExpenses = () => {
                     <p className="text-xs font-medium text-primary">
                       {getDriverName(String(expense.driverId))}
                     </p>
-                    <div className="mt-0.5 flex items-center gap-1.5">
+                    <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
                       <span className="inline-flex items-center rounded-md bg-secondary/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                         {expense.category}
                       </span>
+                      {expense.truck && (
+                        <>
+                          <span className="text-[11px] text-muted-foreground/60">·</span>
+                          <span className="text-[11px] text-muted-foreground/80">{expense.truck}</span>
+                        </>
+                      )}
                       <span className="text-[11px] text-muted-foreground/60">·</span>
                       <span className="text-[11px] text-muted-foreground/60">
                         {format(expDate, "dd MMM, HH:mm", { locale: ru })}
@@ -700,6 +734,17 @@ const AdminExpenses = () => {
               ))}
             </div>
             <Input placeholder="Комментарий" value={editComment} onChange={(e) => setEditComment(e.target.value)} className="bg-secondary border-border" />
+            <Select value={editTruck} onValueChange={setEditTruck}>
+              <SelectTrigger className="bg-secondary border-border">
+                <SelectValue placeholder="Тягач" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">—</SelectItem>
+                {trucks.map((t) => (
+                  <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button className="w-full" onClick={handleEditSave} disabled={saving}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Сохранить

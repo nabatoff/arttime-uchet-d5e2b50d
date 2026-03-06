@@ -138,7 +138,10 @@ const AdminMileage = () => {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground">{r.driverName}</p>
-                    <p className="text-[10px] text-muted-foreground">{format(new Date(r.date), "dd MMM yyyy, HH:mm", { locale: ru })}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {format(new Date(r.date), "dd MMM yyyy, HH:mm", { locale: ru })}
+                      {r.truck && ` · ${r.truck}`}
+                    </p>
                   </div>
                   <span className="text-lg font-bold text-primary shrink-0">{r.km.toLocaleString("ru-RU")} км</span>
                 </div>

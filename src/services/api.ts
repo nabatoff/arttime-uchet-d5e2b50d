@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "@/config";
-import type { ApiResponse, ApiErrorType, AppData, CategoryInfo, Expense, MileageReport, User, Currency, UserRole, TransferRecord } from "@/types";
+import type { ApiResponse, ApiErrorType, AppData, CategoryInfo, Expense, MileageReport, User, Currency, UserRole, TransferRecord, Truck } from "@/types";
 
 const FETCH_TIMEOUT_MS = 15000;
 const RETRY_DELAY_MS = 1000;
@@ -147,6 +147,7 @@ export const api = {
       comment: expense.comment,
       receiptUrl: expense.receiptUrl,
       performedByName: performedByName ?? "",
+      truck: expense.truck ?? "",
     }),
 
   // Update expense
@@ -157,12 +158,16 @@ export const api = {
   deleteExpense: (expenseId: string) =>
     apiPost("deleteExpense", { expenseId }),
 
+  // Trucks — список тягачей из листа Trucks
+  getTrucks: () => apiPost<Truck[]>("getTrucks", {}),
+
   // Save mileage — action is "saveMileage"
   addMileage: (report: Omit<MileageReport, "id">) =>
     apiPost<MileageReport>("saveMileage", {
       userId: report.driverId,
       km: report.km,
       photoUrl: report.photoUrl,
+      truck: report.truck ?? "",
     }),
 
   // Get mileage reports (optional: limit, offset, since, until)

@@ -33,7 +33,8 @@ function doPost(e) {
       updateCurrencies: updateCurrencies,
       saveCategory: saveCategory,
       updateCategory: updateCategory,
-      deleteCategory: deleteCategory
+      deleteCategory: deleteCategory,
+      getTrucks: getTrucks
     };
 
     if (!handlers[action]) {
@@ -512,7 +513,7 @@ function getTransfers(body) {
 // ==================== EXPENSES ====================
 
 var EXPENSES_HEADERS = [
-  "id", "userId", "date", "category", "amount", "currency", "comment", "receipt_url", "performedBy"
+  "id", "userId", "date", "category", "amount", "currency", "comment", "receipt_url", "performedBy", "truck"
 ];
 
 /** Добавляет колонку performedBy в лист Expenses, если её ещё нет. Старые данные не трогает. */
@@ -522,6 +523,15 @@ function ensureExpensesPerformedByColumn(sheet) {
   var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
   if (headers.indexOf("performedBy") !== -1) return;
   sheet.getRange(1, lastCol + 1).setValue("performedBy");
+}
+
+/** Добавляет колонку truck в лист Expenses, если её ещё нет. */
+function ensureExpensesTruckColumn(sheet) {
+  var lastCol = sheet.getLastColumn();
+  if (lastCol === 0) return;
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  if (headers.indexOf("truck") !== -1) return;
+  sheet.getRange(1, lastCol + 1).setValue("truck");
 }
 
 function parseDateOrNull(val) {
@@ -566,6 +576,8 @@ function getExpenses(body) {
     if (sinceMs != null && rowDate < sinceMs) continue;
     if (untilMs != null && rowDate > untilMs) continue;
 
+    var truckCol = headers.indexOf("truck");
+    var truckVal = truckCol !== -1 && rows[i][truckCol] ? String(rows[i][truckCol]) : "";
     expenses.push({
       id: String(r.id || i),
       driverId: String(r.userId || ""),
@@ -576,7 +588,8 @@ function getExpenses(body) {
       currency: String(r.currency || "KZT"),
       comment: String(r.comment || ""),
       receiptUrl: String(r.receipt_url || r.receiptUrl || ""),
-      performedBy: String(r.performedBy || "")
+      performedBy: String(r.performedBy || ""),
+      truck: truckVal
     });
   }
 
@@ -602,12 +615,17 @@ function saveExpense(body) {
     sheet = getOrCreateSheet("Expenses", EXPENSES_HEADERS);
   } else {
     ensureExpensesPerformedByColumn(sheet);
+    ensureExpensesTruckColumn(sheet);
   }
 
   var rows = sheet.getDataRange().getValues();
   var headers = rows[0];
-  var colCount = headers.length;
   var performedByCol = headers.indexOf("performedBy") !== -1;
+  var truckCol = headers.indexOf("truck") !== -1;
+  var truckName = body.truck !== undefined ? String(body.truck || "") : "";
+  if (!truckName) {
+    truckName = getLastMileageTruckForDriverDate(userId, new Date());
+  }
 
   var id = Utilities.getUuid();
   var date = new Date();
@@ -615,6 +633,9 @@ function saveExpense(body) {
   var row = [id, userId, date, category, amount, currency, comment, receiptUrl];
   if (performedByCol) {
     row.push(performedByName);
+  }
+  if (truckCol) {
+    row.push(truckName);
   }
   sheet.appendRow(row);
 
@@ -634,7 +655,8 @@ function saveExpense(body) {
       currency: currency,
       comment: comment,
       receiptUrl: receiptUrl,
-      performedBy: performedByName
+      performedBy: performedByName,
+      truck: truckName
     }
   };
 }
@@ -690,6 +712,10 @@ function updateExpense(body) {
         var pi = headers.indexOf("performedBy");
         if (pi !== -1) sheet.getRange(i + 1, pi + 1).setValue(String(body.performedBy));
       }
+      if (body.truck !== undefined) {
+        var ti = headers.indexOf("truck");
+        if (ti !== -1) sheet.getRange(i + 1, ti + 1).setValue(String(body.truck));
+      }
       return { success: true };
     }
   }
@@ -724,6 +750,73 @@ function deleteExpense(body) {
   return { success: false, error: "Запись не найдена" };
 }
 
+// ==================== TRUCKS ====================
+
+function getTrucks() {
+  var sheet = getSheet("Trucks");
+  if (!sheet) {
+    sheet = getOrCreateSheet("Trucks", ["name"]);
+  }
+  var rows = sheet.getDataRange().getValues();
+  var list = [];
+  for (var i = 1; i < rows.length; i++) {
+    if (rows[i][0]) {
+      list.push({ id: String(rows[i][0]), name: String(rows[i][0]) });
+    }
+  }
+  return { success: true, data: list };
+}
+
+/** Форматирует дату в yyyy-MM-dd для сравнения "один день". */
+function toDateKey(val) {
+  if (!val) return "";
+  var d = val instanceof Date ? val : new Date(val);
+  return Utilities.formatDate(d, TIMEZONE, "yyyy-MM-dd");
+}
+
+/** Возвращает тягач из последней записи пробега водителя за дату (или ""). */
+function getLastMileageTruckForDriverDate(userId, dateVal) {
+  var sheet = getSheet("Mileage");
+  if (!sheet) return "";
+  var key = toDateKey(dateVal);
+  if (!key) return "";
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+  var truckCol = headers.indexOf("truck");
+  var userIdCol = headers.indexOf("userId");
+  var dateCol = headers.indexOf("date");
+  if (truckCol === -1 || userIdCol === -1 || dateCol === -1) return "";
+  var lastTruck = "";
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][userIdCol]) !== String(userId)) continue;
+    if (toDateKey(rows[i][dateCol]) !== key) continue;
+    if (rows[i][truckCol]) lastTruck = String(rows[i][truckCol]);
+  }
+  return lastTruck;
+}
+
+/** Проставляет тягач во все расходы водителя за указанную дату. */
+function setExpensesTruckForDriverDate(userId, dateVal, truckName) {
+  var sheet = getSheet("Expenses");
+  if (!sheet) return;
+  var targetKey = toDateKey(dateVal);
+  if (!targetKey) return;
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+  var truckCol = headers.indexOf("truck");
+  if (truckCol === -1) return;
+  var userIdCol = headers.indexOf("userId");
+  var dateCol = headers.indexOf("date");
+  if (userIdCol === -1 || dateCol === -1) return;
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][userIdCol]) !== String(userId)) continue;
+    var rowKey = toDateKey(rows[i][dateCol]);
+    if (rowKey === targetKey) {
+      sheet.getRange(i + 1, truckCol + 1).setValue(String(truckName || ""));
+    }
+  }
+}
+
 // ==================== MILEAGE ====================
 
 function getMileage(body) {
@@ -745,6 +838,7 @@ function getMileage(body) {
 
   var rows = sheet.getDataRange().getValues();
   var headers = rows[0];
+  var truckCol = headers.indexOf("truck");
   var reports = [];
 
   for (var i = 1; i < rows.length; i++) {
@@ -754,13 +848,15 @@ function getMileage(body) {
       if (sinceMs != null && rowDate < sinceMs) continue;
       if (untilMs != null && rowDate > untilMs) continue;
 
+      var truckVal = truckCol !== -1 && rows[i][truckCol] ? String(rows[i][truckCol]) : "";
       reports.push({
         id: String(r.id || i),
         driverId: String(r.userId || ""),
         driverName: getDriverName(r.userId),
         date: formatDate(r.date),
         km: Number(r.km_value || r.km) || 0,
-        photoUrl: String(r.photo_url || r.photoUrl || "")
+        photoUrl: String(r.photo_url || r.photoUrl || ""),
+        truck: truckVal
       });
     }
   }
@@ -776,17 +872,27 @@ function saveMileage(body) {
   var userId = body.userId;
   var km = Number(body.km);
   var photoUrl = body.photoUrl || "";
+  var truck = body.truck !== undefined ? String(body.truck || "") : "";
   var sheet = getSheet("Mileage");
   if (!sheet) {
     sheet = getOrCreateSheet("Mileage", [
-      "id", "userId", "date", "km_value", "photo_url"
+      "id", "userId", "date", "km_value", "photo_url", "truck"
     ]);
+  } else {
+    var mHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    if (mHeaders.indexOf("truck") === -1) {
+      sheet.getRange(1, mHeaders.length + 1).setValue("truck");
+    }
   }
 
   var id = Utilities.getUuid();
   var date = new Date();
 
-  sheet.appendRow([id, userId, date, km, photoUrl]);
+  sheet.appendRow([id, userId, date, km, photoUrl, truck]);
+
+  if (truck) {
+    setExpensesTruckForDriverDate(userId, date, truck);
+  }
 
   return {
     success: true,
@@ -796,7 +902,8 @@ function saveMileage(body) {
       driverName: getDriverName(userId),
       date: formatDate(date),
       km: km,
-      photoUrl: photoUrl
+      photoUrl: photoUrl,
+      truck: truck
     }
   };
 }
