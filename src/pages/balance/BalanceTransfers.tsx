@@ -39,7 +39,13 @@ const BalanceTransfers = () => {
     queryFn: async () => {
       const result = await api.getDrivers();
       if (result.success && result.data) {
-        return result.data.filter((d) => d.role.toLowerCase() === "driver");
+        return result.data.filter((d) => {
+          const role = d.role.toLowerCase();
+          // Водители всегда доступны, а текущий balance-пользователь видит и себя
+          if (role === "driver") return true;
+          if (role === "balance" && user && String(d.id) === String(user.id)) return true;
+          return false;
+        });
       }
       return [] as User[];
     },

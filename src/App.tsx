@@ -76,6 +76,7 @@ function AppRoutes() {
         <Route path="/balance" element={<BalanceDashboard />} />
         <Route path="/balance/transfers" element={<BalanceTransfers />} />
         <Route path="/balance/expenses" element={<BalanceExpenses />} />
+        <Route path="/expenses" element={<Expenses />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/install" element={<Install />} />
         <Route path="/" element={<Navigate to="/balance" replace />} />
