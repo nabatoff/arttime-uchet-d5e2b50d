@@ -30,8 +30,11 @@ export default defineConfig(({ mode }) => ({
         theme_color: "#000000",
         background_color: "#000000",
         display: "standalone",
+        display_override: ["standalone", "minimal-ui", "browser"],
         orientation: "portrait",
         start_url: "/",
+        scope: "/",
+        id: "/",
         icons: [
           {
             src: "/pwa-192x192.png",

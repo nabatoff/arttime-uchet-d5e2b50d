@@ -12,6 +12,7 @@ const Install = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [isIos, setIsIos] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
@@ -22,6 +23,7 @@ const Install = () => {
 
     const ua = navigator.userAgent.toLowerCase();
     setIsIos(/iphone|ipad|ipod/.test(ua));
+    setIsAndroid(/android/.test(ua));
 
     const handler = (e: Event) => {
       e.preventDefault();
@@ -93,6 +95,15 @@ const Install = () => {
               <PlusSquare className="h-5 w-5 text-primary" />
             </div>
             <span>Выберите <strong className="text-foreground">На экран «Домой»</strong></span>
+          </div>
+        </div>
+      ) : isAndroid ? (
+        <div className="flex flex-col items-center gap-4 rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">Как добавить на главный экран (Android):</p>
+          <div className="space-y-3 text-left">
+            <p><strong className="text-foreground">Chrome:</strong> меню <strong className="text-foreground">⋮</strong> (три точки) → «Установить приложение» или «Добавить на главный экран».</p>
+            <p><strong className="text-foreground">Samsung Internet:</strong> меню → «Добавить страницу на» → «Главный экран».</p>
+            <p className="text-xs opacity-90">Если пункта нет — откройте сайт ещё раз через несколько минут или перезагрузите страницу.</p>
           </div>
         </div>
       ) : (

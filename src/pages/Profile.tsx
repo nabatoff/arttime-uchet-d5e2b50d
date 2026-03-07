@@ -6,12 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { LogOut, UserCircle, Sun, Moon } from "lucide-react";
+import { Link } from "react-router-dom";
+import { LogOut, UserCircle, Sun, Moon, Download } from "lucide-react";
 
 const Profile = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const isStandalone =
+    typeof window !== "undefined" &&
+    (window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true);
 
   const handleLogout = () => {
     setLogoutOpen(false);
@@ -42,6 +46,23 @@ const Profile = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Install app (only when opened in browser, not as installed PWA) */}
+        {!isStandalone && (
+          <Link to="/install">
+            <Card className="card-elevated transition-opacity hover:opacity-90">
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                  <Download className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-medium text-foreground">Добавить на главный экран</p>
+                  <p className="text-xs text-muted-foreground">Установить как приложение для быстрого доступа</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
 
         {/* Theme switcher */}
         <Card className="card-elevated">
