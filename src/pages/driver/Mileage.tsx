@@ -11,6 +11,8 @@ import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { startOfDay } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { vibrateSuccess } from "@/lib/utils";
 
 const Mileage = () => {
   const { user } = useAuth();
@@ -20,6 +22,7 @@ const Mileage = () => {
   const [truck, setTruck] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showMileageHint, setShowMileageHint] = useState(() => !localStorage.getItem("mileage-tooltip-seen"));
 
   const todayIso = startOfDay(new Date()).toISOString();
 
@@ -44,6 +47,8 @@ const Mileage = () => {
       truck: truck || undefined,
     });
     if (result.success) {
+      toast({ title: "Пробег отправлен" });
+      vibrateSuccess();
       markSubmitted();
       navigate("/dashboard", { replace: true });
     }
@@ -80,6 +85,22 @@ const Mileage = () => {
             label="Фото спидометра"
             onUpload={setPhotoUrl}
           />
+          {showMileageHint && (
+            <div className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-foreground flex items-center justify-between gap-2">
+              <span>Сначала выберите тягач и укажите км</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0 h-8"
+                onClick={() => {
+                  localStorage.setItem("mileage-tooltip-seen", "1");
+                  setShowMileageHint(false);
+                }}
+              >
+                Понятно
+              </Button>
+            </div>
+          )}
           <Button
             onClick={handleSave}
             disabled={!canSave}

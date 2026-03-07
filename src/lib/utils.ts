@@ -13,3 +13,10 @@ export function filterCategoriesByRole(categories: CategoryInfo[], role: UserRol
     (c) => !c.visibleTo || c.visibleTo === "both" || c.visibleTo === role
   );
 }
+
+/** Короткая вибрация при успешном действии (мобильные). */
+export function vibrateSuccess() {
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    navigator.vibrate(10);
+  }
+}

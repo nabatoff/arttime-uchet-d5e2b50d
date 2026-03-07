@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { api } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Filter, X, Plus, CalendarIcon, Pencil, Trash2, Download, ArrowRight, ChevronDown } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User, type TransferRecord } from "@/types";
-import { format, startOfDay, endOfDay, subDays } from "date-fns";
+import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { ru } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { cn, vibrateSuccess } from "@/lib/utils";
 import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -52,10 +52,40 @@ const AdminExpenses = () => {
   const defaultDateTo = endOfDay(new Date());
   const defaultDateFrom = startOfDay(subDays(new Date(), 30));
 
-  const [filterDriver, setFilterDriver] = useState<string>("all");
-  const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(() => defaultDateFrom);
-  const [dateTo, setDateTo] = useState<Date | undefined>(() => defaultDateTo);
+  const ADMIN_EXPENSES_FILTERS_KEY = "admin-expenses-filters";
+
+  const loadSavedFilters = (): { filterDriver: string; filterCategory: string; dateFrom: Date | undefined; dateTo: Date | undefined } => {
+    try {
+      const raw = localStorage.getItem(ADMIN_EXPENSES_FILTERS_KEY);
+      if (!raw) return { filterDriver: "all", filterCategory: "all", dateFrom: defaultDateFrom, dateTo: defaultDateTo };
+      const parsed = JSON.parse(raw) as { filterDriver?: string; filterCategory?: string; dateFrom?: string; dateTo?: string };
+      return {
+        filterDriver: parsed.filterDriver ?? "all",
+        filterCategory: parsed.filterCategory ?? "all",
+        dateFrom: parsed.dateFrom ? new Date(parsed.dateFrom) : defaultDateFrom,
+        dateTo: parsed.dateTo ? new Date(parsed.dateTo) : defaultDateTo,
+      };
+    } catch {
+      return { filterDriver: "all", filterCategory: "all", dateFrom: defaultDateFrom, dateTo: defaultDateTo };
+    }
+  };
+
+  const [filterDriver, setFilterDriver] = useState<string>(() => loadSavedFilters().filterDriver);
+  const [filterCategory, setFilterCategory] = useState<string>(() => loadSavedFilters().filterCategory);
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(() => loadSavedFilters().dateFrom);
+  const [dateTo, setDateTo] = useState<Date | undefined>(() => loadSavedFilters().dateTo);
+
+  useEffect(() => {
+    localStorage.setItem(
+      ADMIN_EXPENSES_FILTERS_KEY,
+      JSON.stringify({
+        filterDriver,
+        filterCategory,
+        dateFrom: dateFrom?.toISOString(),
+        dateTo: dateTo?.toISOString(),
+      })
+    );
+  }, [filterDriver, filterCategory, dateFrom, dateTo]);
 
   const since = dateFrom ? startOfDay(dateFrom).toISOString() : undefined;
   const until = dateTo ? endOfDay(dateTo).toISOString() : undefined;
@@ -214,6 +244,7 @@ const AdminExpenses = () => {
       truck: editTruck || undefined,
     });
     toast({ title: "Запись обновлена" });
+    vibrateSuccess();
     setSaving(false);
     setEditOpen(false);
     await reloadData();
@@ -224,6 +255,7 @@ const AdminExpenses = () => {
     setSaving(true);
     await api.deleteExpense(deleteTarget.id);
     toast({ title: "Запись удалена" });
+    vibrateSuccess();
     setSaving(false);
     setDeleteTarget(null);
     await reloadData();
@@ -255,6 +287,7 @@ const AdminExpenses = () => {
         operatorName
       );
       toast({ title: "Баланс пополнен" });
+      vibrateSuccess();
     } else {
       await api.addExpense(
         {
@@ -270,6 +303,7 @@ const AdminExpenses = () => {
         operatorName
       );
       toast({ title: "Расход добавлен" });
+      vibrateSuccess();
     }
 
     setAddOpen(false);
@@ -508,6 +542,32 @@ const AdminExpenses = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Quick period */}
+          <div>
+            <p className="mb-1 text-xs font-medium text-muted-foreground">Период</p>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: "Сегодня", from: startOfDay(new Date()), to: endOfDay(new Date()) },
+                { label: "7 дней", from: startOfDay(subDays(new Date(), 6)), to: endOfDay(new Date()) },
+                { label: "30 дней", from: startOfDay(subDays(new Date(), 29)), to: endOfDay(new Date()) },
+                { label: "Месяц", from: startOfMonth(new Date()), to: endOfMonth(new Date()) },
+              ].map(({ label, from, to }) => (
+                <Button
+                  key={label}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => {
+                    setDateFrom(from);
+                    setDateTo(to);
+                  }}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
           </div>
 
           {/* Date range */}

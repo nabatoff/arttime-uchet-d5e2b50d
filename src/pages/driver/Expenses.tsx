@@ -11,19 +11,22 @@ import { Loader2, Plus, Pencil, X } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, type Currency, type Expense } from "@/types";
 import { format, isToday, subDays, isAfter, startOfDay } from "date-fns";
 import { ru } from "date-fns/locale";
-import { cn, filterCategoriesByRole } from "@/lib/utils";
+import { cn, filterCategoriesByRole, vibrateSuccess } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useScrollReveal } from "@/hooks/useGsap";
+import { useToast } from "@/hooks/use-toast";
 import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
 
 const Expenses = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   useScrollReveal(listRef);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [showExpensesHint, setShowExpensesHint] = useState(() => !localStorage.getItem("driver-expenses-tooltip-seen"));
 
   // Form state
   const [amount, setAmount] = useState("");
@@ -133,6 +136,8 @@ const Expenses = () => {
     }
 
     queryClient.invalidateQueries({ queryKey: ["expenses", user.id] });
+    toast({ title: editingExpense ? "Расход обновлён" : "Расход добавлен" });
+    vibrateSuccess();
     setSaving(false);
     setDialogOpen(false);
     resetForm();
@@ -143,6 +148,22 @@ const Expenses = () => {
   return (
     <PageLayout title="Расходы">
       <div className="mb-4">
+        {showExpensesHint && (
+          <div className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-foreground flex items-center justify-between gap-2 mb-3">
+            <span>Нажмите «Добавить расход», чтобы зафиксировать трату</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0 h-8"
+              onClick={() => {
+                localStorage.setItem("driver-expenses-tooltip-seen", "1");
+                setShowExpensesHint(false);
+              }}
+            >
+              Понятно
+            </Button>
+          </div>
+        )}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={openAdd} className="w-full gap-2">

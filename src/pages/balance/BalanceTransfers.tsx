@@ -9,8 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type User, type TransferRecord } from "@/types";
-import { cn } from "@/lib/utils";
-import { format, startOfDay, endOfDay, subDays } from "date-fns";
+import { cn, vibrateSuccess } from "@/lib/utils";
+import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { ru } from "date-fns/locale";
 import { useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -108,6 +108,7 @@ const BalanceTransfers = () => {
     const result = await api.transfer(fromDriverId, toDriverId, currency, Number(amount), user?.id || "");
     if (result.success) {
       toast({ title: "Перевод выполнен" });
+      vibrateSuccess();
       setAmount("");
       queryClient.invalidateQueries({ queryKey: ["drivers"] });
       queryClient.invalidateQueries({ queryKey: ["transfers"] } as { queryKey: [string] });
@@ -201,7 +202,17 @@ const BalanceTransfers = () => {
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               История переводов
             </h3>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {[
+                { label: "Сегодня", from: startOfDay(new Date()), to: endOfDay(new Date()) },
+                { label: "7 д.", from: startOfDay(subDays(new Date(), 6)), to: endOfDay(new Date()) },
+                { label: "30 д.", from: startOfDay(subDays(new Date(), 29)), to: endOfDay(new Date()) },
+                { label: "Месяц", from: startOfMonth(new Date()), to: endOfMonth(new Date()) },
+              ].map(({ label, from, to }) => (
+                <Button key={label} variant="outline" size="sm" className="text-xs h-9" onClick={() => { setDateFrom(from); setDateTo(to); }}>
+                  {label}
+                </Button>
+              ))}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className={cn("h-9 text-xs", (!dateFrom || !dateTo) && "text-muted-foreground")}>

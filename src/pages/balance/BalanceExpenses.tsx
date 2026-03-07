@@ -6,7 +6,7 @@ import PageLayout from "@/components/PageLayout";
 import { Button } from "@/components/ui/button";
 import { Loader2, Filter, X, CalendarIcon, Plus, ChevronDown } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User } from "@/types";
-import { format, startOfDay, endOfDay, subDays } from "date-fns";
+import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { ru } from "date-fns/locale";
 import { cn, filterCategoriesByRole } from "@/lib/utils";
 import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
@@ -18,10 +18,13 @@ import { useScrollReveal } from "@/hooks/useGsap";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useToast } from "@/hooks/use-toast";
+import { vibrateSuccess } from "@/lib/utils";
 
 const BalanceExpenses = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const listRef = useRef<HTMLDivElement>(null);
   useScrollReveal(listRef);
   const [showFilters, setShowFilters] = useState(false);
@@ -171,6 +174,8 @@ const BalanceExpenses = () => {
       comment,
       receiptUrl,
     });
+    toast({ title: "Расход добавлен" });
+    vibrateSuccess();
     await queryClient.invalidateQueries({ queryKey: ["balanceExpenses"] as { queryKey: [string] } });
     setSaving(false);
     setDialogOpen(false);
@@ -313,6 +318,21 @@ const BalanceExpenses = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-medium text-muted-foreground">Период</p>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {[
+                { label: "Сегодня", from: startOfDay(new Date()), to: endOfDay(new Date()) },
+                { label: "7 дней", from: startOfDay(subDays(new Date(), 6)), to: endOfDay(new Date()) },
+                { label: "30 дней", from: startOfDay(subDays(new Date(), 29)), to: endOfDay(new Date()) },
+                { label: "Месяц", from: startOfMonth(new Date()), to: endOfMonth(new Date()) },
+              ].map(({ label, from, to }) => (
+                <Button key={label} variant="outline" size="sm" className="text-xs" onClick={() => { setDateFrom(from); setDateTo(to); }}>
+                  {label}
+                </Button>
+              ))}
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
