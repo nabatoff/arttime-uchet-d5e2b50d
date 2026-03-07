@@ -74,7 +74,9 @@ const BalanceExpenses = () => {
     queryKey: ["drivers"],
     queryFn: async () => {
       const result = await api.getDrivers();
-      return result.success && result.data ? result.data.filter((d) => d.role.toLowerCase() === "driver") : [] as User[];
+      return result.success && result.data
+        ? result.data.filter((d) => (d.role ?? "").toLowerCase() !== "admin")
+        : [] as User[];
     },
   });
 
