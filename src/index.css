@@ -118,6 +118,11 @@
 }
 
 @layer components {
+  /* Отступ под вырез и статус-бар на iPhone */
+  .pt-safe-top {
+    padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+  }
+
   .glass-surface {
     @apply bg-card/80 backdrop-blur-xl border border-[hsl(var(--surface-glass-border))];
   }

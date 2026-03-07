@@ -36,14 +36,14 @@ const PageLayout = ({ children, title }: PageLayoutProps) => {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {title && (
-        <header className="sticky top-0 z-40 glass-header border-b border-border/60 px-4 py-3">
+        <header className="sticky top-0 z-40 glass-header border-b border-border/60 px-4 pb-3 pt-safe-top">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src={logo} alt="ArtTime" className="h-8 object-contain" />
+            <div className="flex items-center gap-2 min-w-0">
+              <img src={logo} alt="ArtTime" className="h-7 shrink-0 object-contain" />
               <div className="h-5 w-px bg-border/60" />
-              <h1 className="text-sm font-semibold text-foreground">{title}</h1>
+              <h1 className="text-sm font-semibold text-foreground truncate">{title}</h1>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5 shrink-0">
               <button
                   onClick={handleDesktopRefresh}
                   disabled={refreshing}
