@@ -43,7 +43,7 @@ const BottomNav = () => {
     <nav className="fixed bottom-0 left-0 right-0 z-50 glass-nav border-t border-border/60">
       <div className="mx-auto flex max-w-lg items-center justify-around py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
         {tabs.map((tab) => {
-          const isActive = tab.path === "/admin/settings" ? location.pathname.startsWith("/admin/settings") || location.pathname === "/admin/drivers" || location.pathname === "/admin/categories" : location.pathname === tab.path;
+          const isActive = tab.path === "/admin/settings" ? location.pathname.startsWith("/admin/settings") || location.pathname === "/admin/drivers" || location.pathname === "/admin/categories" || location.pathname === "/admin/trucks" : location.pathname === tab.path;
           const Icon = tab.icon;
           return (
             <button

@@ -34,7 +34,10 @@ function doPost(e) {
       saveCategory: saveCategory,
       updateCategory: updateCategory,
       deleteCategory: deleteCategory,
-      getTrucks: getTrucks
+      getTrucks: getTrucks,
+      saveTruck: saveTruck,
+      updateTruck: updateTruck,
+      deleteTruck: deleteTruck
     };
 
     if (!handlers[action]) {
@@ -791,6 +794,52 @@ function getTrucks(body) {
   }
 
   return { success: true, data: list };
+}
+
+function saveTruck(body) {
+  var name = String(body.name || "").trim();
+  if (!name) return { success: false, error: "Название не указано" };
+  var sheet = getSheet("Trucks");
+  if (!sheet) sheet = getOrCreateSheet("Trucks", ["name"]);
+  var rows = sheet.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]).trim().toLowerCase() === name.toLowerCase()) {
+      return { success: false, error: "Тягач с таким названием уже есть" };
+    }
+  }
+  sheet.appendRow([name]);
+  return { success: true };
+}
+
+function updateTruck(body) {
+  var oldName = String(body.oldName || "").trim();
+  var newName = String(body.newName || "").trim();
+  if (!oldName || !newName) return { success: false, error: "Название не указано" };
+  var sheet = getSheet("Trucks");
+  if (!sheet) return { success: false, error: "Лист Trucks не найден" };
+  var rows = sheet.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]).trim() === oldName) {
+      sheet.getRange(i + 1, 1).setValue(newName);
+      return { success: true };
+    }
+  }
+  return { success: false, error: "Тягач не найден" };
+}
+
+function deleteTruck(body) {
+  var name = String(body.name || "").trim();
+  if (!name) return { success: false, error: "Название не указано" };
+  var sheet = getSheet("Trucks");
+  if (!sheet) return { success: false, error: "Лист Trucks не найден" };
+  var rows = sheet.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]).trim() === name) {
+      sheet.deleteRow(i + 1);
+      return { success: true };
+    }
+  }
+  return { success: false, error: "Тягач не найден" };
 }
 
 /** Форматирует дату в yyyy-MM-dd для сравнения "один день". */

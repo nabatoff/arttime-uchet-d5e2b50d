@@ -17,6 +17,7 @@ import AdminDrivers from "./pages/admin/AdminDrivers";
 import AdminExpenses from "./pages/admin/AdminExpenses";
 import AdminCategories from "./pages/admin/AdminCategories";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminTrucks from "./pages/admin/AdminTrucks";
 import BalanceDashboard from "./pages/balance/BalanceDashboard";
 import BalanceTransfers from "./pages/balance/BalanceTransfers";
 import BalanceExpenses from "./pages/balance/BalanceExpenses";
@@ -64,6 +65,7 @@ function AppRoutes() {
         <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/admin/drivers" element={<AdminDrivers backTo="/admin/settings" />} />
         <Route path="/admin/categories" element={<AdminCategories backTo="/admin/settings" />} />
+        <Route path="/admin/trucks" element={<AdminTrucks backTo="/admin/settings" />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/install" element={<Install />} />
         <Route path="/" element={<Navigate to="/admin" replace />} />
