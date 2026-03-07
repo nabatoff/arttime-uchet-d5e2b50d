@@ -150,6 +150,18 @@ const AdminExpenses = () => {
     },
   });
 
+  const filteredTransfers = useMemo(() => {
+    return transfers.filter((t) => {
+      const d = new Date(t.date);
+      if (dateFrom && d < startOfDay(dateFrom)) return false;
+      if (dateTo && d > endOfDay(dateTo)) return false;
+      if (filterDriver !== "all") {
+        if (String(t.fromDriverId) !== filterDriver && String(t.toDriverId) !== filterDriver) return false;
+      }
+      return true;
+    });
+  }, [transfers, dateFrom, dateTo, filterDriver]);
+
   const summaryByCurrency = useMemo(() => {
     const expenses: Record<string, number> = {};
     const topups: Record<string, number> = {};
@@ -269,7 +281,8 @@ const AdminExpenses = () => {
 
   const exportToExcel = () => {
     import("xlsx").then((XLSX) => {
-      const rows = filtered.map((e) => ({
+      const wb = XLSX.utils.book_new();
+      const expenseRows = filtered.map((e) => ({
         "Дата": format(new Date(e.date), "dd.MM.yyyy HH:mm", { locale: ru }),
         "Водитель": getDriverName(e.driverId),
         "Логин": getDriverLogin(e.driverId),
@@ -280,9 +293,16 @@ const AdminExpenses = () => {
         "Комментарий": e.comment,
         "Оператор": e.performedBy ?? "",
       }));
-      const ws = XLSX.utils.json_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Расходы");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(expenseRows), "Расходы");
+      const transferRows = filteredTransfers.map((t) => ({
+        "Дата": format(new Date(t.date), "dd.MM.yyyy HH:mm", { locale: ru }),
+        "От кого": getDriverName(t.fromDriverId),
+        "Кому": getDriverName(t.toDriverId),
+        "Валюта": t.currency,
+        "Сумма": t.amount,
+        "Кто выполнил": t.performedBy ?? "",
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(transferRows), "Переводы");
       XLSX.writeFile(wb, `Расходы_${format(new Date(), "dd-MM-yyyy")}.xlsx`);
     });
   };
@@ -311,7 +331,7 @@ const AdminExpenses = () => {
           </Button>
         )}
         <div className="flex-1 min-w-0" />
-        <Button variant="secondary" size="sm" onClick={exportToExcel} className={hasActiveFilters ? "px-2 shrink-0" : "gap-1.5 shrink-0"} disabled={filtered.length === 0}>
+        <Button variant="secondary" size="sm" onClick={exportToExcel} className={hasActiveFilters ? "px-2 shrink-0" : "gap-1.5 shrink-0"} disabled={filtered.length === 0 && filteredTransfers.length === 0}>
           <Download className="h-4 w-4" />
           {!hasActiveFilters && " Excel"}
         </Button>
@@ -679,11 +699,11 @@ const AdminExpenses = () => {
           <div className="flex items-center justify-center py-6">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
           </div>
-        ) : transfers.length === 0 ? (
-          <p className="py-4 text-sm text-muted-foreground">Переводов нет</p>
+        ) : filteredTransfers.length === 0 ? (
+          <p className="py-4 text-sm text-muted-foreground">Переводов нет{hasActiveFilters ? " по выбранным фильтрам" : ""}</p>
         ) : (
           <div className="space-y-2">
-            {transfers.map((t) => (
+            {filteredTransfers.map((t) => (
               <div key={t.id} className="rounded-xl border border-border/60 bg-card p-3 shadow-[var(--card-shadow)]">
                 <div className="flex items-center gap-2 text-sm">
                   <span className="font-medium text-foreground">{getDriverName(t.fromDriverId)}</span>
