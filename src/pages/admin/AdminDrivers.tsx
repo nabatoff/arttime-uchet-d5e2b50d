@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-const AdminDrivers = () => {
+const AdminDrivers = ({ backTo }: { backTo?: string } = {}) => {
   const queryClient = useQueryClient();
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -141,7 +141,7 @@ const AdminDrivers = () => {
     : [];
 
   return (
-    <PageLayout title="Водители">
+    <PageLayout title="Водители" backTo={backTo}>
       <div className="animate-fade-in space-y-6">
         {/* Driver selector */}
         <div className="flex items-center gap-2">

@@ -16,6 +16,7 @@ import AdminMileage from "./pages/admin/AdminMileage";
 import AdminDrivers from "./pages/admin/AdminDrivers";
 import AdminExpenses from "./pages/admin/AdminExpenses";
 import AdminCategories from "./pages/admin/AdminCategories";
+import AdminSettings from "./pages/admin/AdminSettings";
 import BalanceDashboard from "./pages/balance/BalanceDashboard";
 import BalanceTransfers from "./pages/balance/BalanceTransfers";
 import BalanceExpenses from "./pages/balance/BalanceExpenses";
@@ -60,8 +61,9 @@ function AppRoutes() {
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/expenses" element={<AdminExpenses />} />
         <Route path="/admin/mileage" element={<AdminMileage />} />
-        <Route path="/admin/drivers" element={<AdminDrivers />} />
-        <Route path="/admin/categories" element={<AdminCategories />} />
+        <Route path="/admin/settings" element={<AdminSettings />} />
+        <Route path="/admin/drivers" element={<AdminDrivers backTo="/admin/settings" />} />
+        <Route path="/admin/categories" element={<AdminCategories backTo="/admin/settings" />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/install" element={<Install />} />
         <Route path="/" element={<Navigate to="/admin" replace />} />

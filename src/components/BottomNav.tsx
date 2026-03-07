@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Wallet, Receipt, Gauge, LayoutDashboard, Users, ArrowLeftRight, Tags } from "lucide-react";
+import { Wallet, Receipt, Gauge, LayoutDashboard, Settings, ArrowLeftRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMileageGate } from "@/contexts/MileageGateContext";
 import { cn } from "@/lib/utils";
@@ -8,8 +8,7 @@ const adminTabs = [
   { path: "/admin", label: "Баланс", icon: LayoutDashboard },
   { path: "/admin/expenses", label: "Расходы", icon: Receipt },
   { path: "/admin/mileage", label: "Пробег", icon: Gauge },
-  { path: "/admin/drivers", label: "Водители", icon: Users },
-  { path: "/admin/categories", label: "Категории", icon: Tags },
+  { path: "/admin/settings", label: "Настройки", icon: Settings },
 ];
 
 const balanceTabs = [
@@ -44,7 +43,7 @@ const BottomNav = () => {
     <nav className="fixed bottom-0 left-0 right-0 z-50 glass-nav border-t border-border/60">
       <div className="mx-auto flex max-w-lg items-center justify-around py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
         {tabs.map((tab) => {
-          const isActive = location.pathname === tab.path;
+          const isActive = tab.path === "/admin/settings" ? location.pathname.startsWith("/admin/settings") || location.pathname === "/admin/drivers" || location.pathname === "/admin/categories" : location.pathname === tab.path;
           const Icon = tab.icon;
           return (
             <button

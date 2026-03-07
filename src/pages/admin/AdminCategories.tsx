@@ -19,7 +19,7 @@ const VISIBLE_TO_LABELS: Record<CategoryVisibleTo, string> = {
   both: "Оба",
 };
 
-const AdminCategories = () => {
+const AdminCategories = ({ backTo }: { backTo?: string } = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -80,7 +80,7 @@ const AdminCategories = () => {
   };
 
   return (
-    <PageLayout title="Категории">
+    <PageLayout title="Категории" backTo={backTo}>
       <div className="mb-4">
         <Button onClick={openAdd} className="w-full gap-2">
           <Plus className="h-4 w-4" /> Добавить категорию

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { UserCircle, Sun, Moon, RefreshCw } from "lucide-react";
+import { UserCircle, Sun, Moon, RefreshCw, ArrowLeft } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useQueryClient } from "@tanstack/react-query";
 import BottomNav from "./BottomNav";
@@ -11,9 +11,11 @@ import { cn } from "@/lib/utils";
 interface PageLayoutProps {
   children: React.ReactNode;
   title?: string;
+  /** Если задано, в шапке показывается кнопка «Назад» с переходом по этому пути */
+  backTo?: string;
 }
 
-const PageLayout = ({ children, title }: PageLayoutProps) => {
+const PageLayout = ({ children, title, backTo }: PageLayoutProps) => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const queryClient = useQueryClient();
@@ -39,6 +41,16 @@ const PageLayout = ({ children, title }: PageLayoutProps) => {
         <header className="sticky top-0 z-40 glass-header border-b border-border/60 px-4 pb-3 pt-safe-top">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
+              {backTo ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(backTo)}
+                  className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                  aria-label="Назад"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+              ) : null}
               <img src={logo} alt="ArtTime" className="h-7 shrink-0 object-contain" />
               <div className="h-5 w-px bg-border/60" />
               <h1 className="text-sm font-semibold text-foreground truncate">{title}</h1>
