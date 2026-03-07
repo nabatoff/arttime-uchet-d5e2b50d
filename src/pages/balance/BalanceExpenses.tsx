@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import PageLayout from "@/components/PageLayout";
 import { Button } from "@/components/ui/button";
-import { Loader2, Filter, X, CalendarIcon, Plus } from "lucide-react";
+import { Loader2, Filter, X, CalendarIcon, Plus, ChevronDown } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User } from "@/types";
 import { format, startOfDay, endOfDay, subDays } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -17,6 +17,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { useScrollReveal } from "@/hooks/useGsap";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const BalanceExpenses = () => {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ const BalanceExpenses = () => {
   useScrollReveal(listRef);
   const [showFilters, setShowFilters] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   // Self-expense dialog state (for role balance)
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -345,25 +347,32 @@ const BalanceExpenses = () => {
         </div>
       )}
 
-      {/* Summary */}
+      {/* Summary — сворачиваемый, по умолчанию свернут */}
       {!loadingExpenses && filtered.length > 0 && (
-        <div className="mb-4 rounded-2xl border border-border/60 bg-card p-4 shadow-[var(--card-shadow)]">
-          <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            За выбранный период
-          </p>
-          <div className="flex flex-wrap gap-3 text-sm">
-            {ALL_CURRENCIES.map((c) => {
-              const exp = summaryByCurrency.expenses[c] ?? 0;
-              const top = summaryByCurrency.topups[c] ?? 0;
-              if (exp === 0 && top === 0) return null;
-              return (
-                <span key={c} className="rounded-lg bg-secondary/80 px-2 py-1 font-medium">
-                  {c}: расход −{exp.toLocaleString("ru-RU")} {top > 0 ? ` / пополн. +${top.toLocaleString("ru-RU")}` : ""} {CURRENCY_SYMBOLS[c]}
-                </span>
-              );
-            })}
+        <Collapsible open={summaryOpen} onOpenChange={setSummaryOpen} className="mb-4">
+          <div className="rounded-2xl border border-border/60 bg-card shadow-[var(--card-shadow)]">
+            <CollapsibleTrigger className="flex w-full items-center justify-between p-4 text-left hover:bg-secondary/30 transition-colors rounded-2xl">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                За выбранный период
+              </p>
+              <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", summaryOpen && "rotate-180")} />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="flex flex-wrap gap-3 text-sm px-4 pb-4 pt-0">
+                {ALL_CURRENCIES.map((c) => {
+                  const exp = summaryByCurrency.expenses[c] ?? 0;
+                  const top = summaryByCurrency.topups[c] ?? 0;
+                  if (exp === 0 && top === 0) return null;
+                  return (
+                    <span key={c} className="rounded-lg bg-secondary/80 px-2 py-1 font-medium">
+                      {c}: расход −{exp.toLocaleString("ru-RU")} {top > 0 ? ` / пополн. +${top.toLocaleString("ru-RU")}` : ""} {CURRENCY_SYMBOLS[c]}
+                    </span>
+                  );
+                })}
+              </div>
+            </CollapsibleContent>
           </div>
-        </div>
+        </Collapsible>
       )}
 
       {/* Results — read-only cards */}

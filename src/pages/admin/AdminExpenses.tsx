@@ -6,7 +6,7 @@ import PageLayout from "@/components/PageLayout";
 import PhotoUpload from "@/components/PhotoUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Filter, X, Plus, CalendarIcon, Pencil, Trash2, Download, ArrowRight } from "lucide-react";
+import { Loader2, Filter, X, Plus, CalendarIcon, Pencil, Trash2, Download, ArrowRight, ChevronDown } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User, type TransferRecord } from "@/types";
 import { format, startOfDay, endOfDay, subDays } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { useScrollReveal } from "@/hooks/useGsap";
 
@@ -45,6 +46,7 @@ const AdminExpenses = () => {
   const [addTruck, setAddTruck] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const { toast } = useToast();
 
   const defaultDateTo = endOfDay(new Date());
@@ -560,25 +562,32 @@ const AdminExpenses = () => {
         </div>
       )}
 
-      {/* Summary */}
+      {/* Summary — сворачиваемый, по умолчанию свернут */}
       {!loading && filtered.length > 0 && (
-        <div className="mb-4 rounded-2xl border border-border/60 bg-card p-4 shadow-[var(--card-shadow)]">
-          <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            За выбранный период
-          </p>
-          <div className="flex flex-wrap gap-3 text-sm">
-            {ALL_CURRENCIES.map((c) => {
-              const exp = summaryByCurrency.expenses[c] ?? 0;
-              const top = summaryByCurrency.topups[c] ?? 0;
-              if (exp === 0 && top === 0) return null;
-              return (
-                <span key={c} className="rounded-lg bg-secondary/80 px-2 py-1 font-medium">
-                  {c}: расход −{exp.toLocaleString("ru-RU")} {top > 0 ? ` / пополн. +${top.toLocaleString("ru-RU")}` : ""} {CURRENCY_SYMBOLS[c]}
-                </span>
-              );
-            })}
+        <Collapsible open={summaryOpen} onOpenChange={setSummaryOpen} className="mb-4">
+          <div className="rounded-2xl border border-border/60 bg-card shadow-[var(--card-shadow)]">
+            <CollapsibleTrigger className="flex w-full items-center justify-between p-4 text-left hover:bg-secondary/30 transition-colors rounded-2xl">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                За выбранный период
+              </p>
+              <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", summaryOpen && "rotate-180")} />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="flex flex-wrap gap-3 text-sm px-4 pb-4 pt-0">
+                {ALL_CURRENCIES.map((c) => {
+                  const exp = summaryByCurrency.expenses[c] ?? 0;
+                  const top = summaryByCurrency.topups[c] ?? 0;
+                  if (exp === 0 && top === 0) return null;
+                  return (
+                    <span key={c} className="rounded-lg bg-secondary/80 px-2 py-1 font-medium">
+                      {c}: расход −{exp.toLocaleString("ru-RU")} {top > 0 ? ` / пополн. +${top.toLocaleString("ru-RU")}` : ""} {CURRENCY_SYMBOLS[c]}
+                    </span>
+                  );
+                })}
+              </div>
+            </CollapsibleContent>
           </div>
-        </div>
+        </Collapsible>
       )}
 
       {/* Results */}
