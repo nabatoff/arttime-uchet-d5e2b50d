@@ -198,7 +198,8 @@ const Expenses = () => {
 
   return (
     <PageLayout title="Расходы">
-      <div className="mb-4">
+      <OfflineBanner />
+      <div className="mb-4 mt-2">
         {showExpensesHint && (
           <div className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-foreground flex items-center justify-between gap-2 mb-3">
             <span>Нажмите «Добавить расход», чтобы зафиксировать трату</span>
@@ -289,7 +290,7 @@ const Expenses = () => {
                     </div>
                   </div>
                 ) : (
-                  <PhotoUpload label="Фото чека" onUpload={setReceiptUrl} />
+                  <PhotoUpload label="Фото чека" onUpload={setReceiptUrl} onFileReady={(f) => setReceiptFile(f)} />
                 )
               )}
               <Button
