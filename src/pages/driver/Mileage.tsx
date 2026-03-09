@@ -18,6 +18,7 @@ const Mileage = () => {
   const { user } = useAuth();
   const { markSubmitted } = useMileageGate();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [km, setKm] = useState("");
   const [truck, setTruck] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
