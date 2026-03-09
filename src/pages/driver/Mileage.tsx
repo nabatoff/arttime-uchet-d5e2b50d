@@ -4,6 +4,7 @@ import { useMileageGate } from "@/contexts/MileageGateContext";
 import { api } from "@/services/api";
 import PageLayout from "@/components/PageLayout";
 import PhotoUpload from "@/components/PhotoUpload";
+import OfflineBanner from "@/components/OfflineBanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { startOfDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { vibrateSuccess } from "@/lib/utils";
+import { addToQueue, type PendingMileage } from "@/services/offlineQueue";
 
 const Mileage = () => {
   const { user } = useAuth();
@@ -22,6 +24,7 @@ const Mileage = () => {
   const [km, setKm] = useState("");
   const [truck, setTruck] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [showMileageHint, setShowMileageHint] = useState(() => !localStorage.getItem("mileage-tooltip-seen"));
 
@@ -38,20 +41,69 @@ const Mileage = () => {
   const handleSave = async () => {
     if (!user || !km || !photoUrl) return;
     setSaving(true);
-    const result = await api.addMileage({
-      driverId: user.id,
-      driverName: user.name,
-      driverPhoto: user.photo,
-      date: new Date().toISOString(),
-      km: Number(km),
-      photoUrl,
-      truck: truck || undefined,
-    });
-    if (result.success) {
-      toast({ title: "Пробег отправлен" });
-      vibrateSuccess();
-      markSubmitted();
-      navigate("/dashboard", { replace: true });
+
+    try {
+      if (!navigator.onLine || photoUrl === "__offline__") {
+        // Save to offline queue
+        const pending: PendingMileage = {
+          type: "mileage",
+          id: `mil_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          driverId: user.id,
+          driverName: user.name,
+          driverPhoto: user.photo,
+          km: Number(km),
+          photoBlob: photoFile!,
+          photoName: photoFile?.name || "odometer.jpg",
+          truck: truck || undefined,
+          date: new Date().toISOString(),
+          createdAt: Date.now(),
+          status: "pending",
+        };
+        await addToQueue(pending);
+        toast({ title: "Пробег сохранён локально", description: "Отправится при появлении сети" });
+        vibrateSuccess();
+        markSubmitted();
+        navigate("/dashboard", { replace: true });
+      } else {
+        const result = await api.addMileage({
+          driverId: user.id,
+          driverName: user.name,
+          driverPhoto: user.photo,
+          date: new Date().toISOString(),
+          km: Number(km),
+          photoUrl,
+          truck: truck || undefined,
+        });
+        if (result.success) {
+          toast({ title: "Пробег отправлен" });
+          vibrateSuccess();
+          markSubmitted();
+          navigate("/dashboard", { replace: true });
+        }
+      }
+    } catch {
+      // Network error — save offline
+      if (photoFile) {
+        const pending: PendingMileage = {
+          type: "mileage",
+          id: `mil_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          driverId: user.id,
+          driverName: user.name,
+          driverPhoto: user.photo,
+          km: Number(km),
+          photoBlob: photoFile,
+          photoName: photoFile.name,
+          truck: truck || undefined,
+          date: new Date().toISOString(),
+          createdAt: Date.now(),
+          status: "pending",
+        };
+        await addToQueue(pending);
+        toast({ title: "Нет сети — сохранено локально" });
+        vibrateSuccess();
+        markSubmitted();
+        navigate("/dashboard", { replace: true });
+      }
     }
     setSaving(false);
   };
@@ -60,6 +112,7 @@ const Mileage = () => {
 
   return (
     <PageLayout title="Отчет по пробегу">
+      <OfflineBanner />
       <div className="flex flex-col items-center justify-center py-8 animate-fade-in">
         <p className="mb-6 text-center text-muted-foreground">
           Для начала работы укажите текущий пробег, тягач и загрузите фото спидометра
@@ -85,6 +138,7 @@ const Mileage = () => {
           <PhotoUpload
             label="Фото спидометра"
             onUpload={setPhotoUrl}
+            onFileReady={(f) => setPhotoFile(f)}
           />
           {showMileageHint && (
             <div className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-foreground flex items-center justify-between gap-2">

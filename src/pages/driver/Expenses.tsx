@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/services/api";
 import PageLayout from "@/components/PageLayout";
 import PhotoUpload from "@/components/PhotoUpload";
+import OfflineBanner from "@/components/OfflineBanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +17,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useScrollReveal } from "@/hooks/useGsap";
 import { useToast } from "@/hooks/use-toast";
 import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
+import { addToQueue, type PendingExpense } from "@/services/offlineQueue";
 
 const Expenses = () => {
   const { user } = useAuth();
@@ -34,6 +36,7 @@ const Expenses = () => {
   const [category, setCategory] = useState("");
   const [comment, setComment] = useState("");
   const [receiptUrl, setReceiptUrl] = useState("");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
   const activeCurrencies: Currency[] =
@@ -92,6 +95,7 @@ const Expenses = () => {
     setCategory("");
     setComment("");
     setReceiptUrl("");
+    setReceiptFile(null);
     setEditingExpense(null);
   };
 
@@ -114,30 +118,77 @@ const Expenses = () => {
     if (!user || !amount || !category || (!receiptUrl && !selectedCategoryNoReceipt)) return;
     setSaving(true);
 
-    if (editingExpense) {
-      await api.updateExpense({
-        ...editingExpense,
-        amount: Number(amount),
-        currency,
-        category,
-        comment,
-        receiptUrl,
-      });
-    } else {
-      await api.addExpense({
-        driverId: user.id,
-        date: new Date().toISOString(),
-        amount: Number(amount),
-        currency,
-        category,
-        comment,
-        receiptUrl,
-      });
+    try {
+      if (editingExpense) {
+        await api.updateExpense({
+          ...editingExpense,
+          amount: Number(amount),
+          currency,
+          category,
+          comment,
+          receiptUrl: receiptUrl === "__offline__" ? "" : receiptUrl,
+        });
+      } else if (!navigator.onLine || receiptUrl === "__offline__") {
+        // Save to offline queue
+        const pending: PendingExpense = {
+          type: "expense",
+          id: `exp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          driverId: user.id,
+          amount: Number(amount),
+          currency,
+          category,
+          comment,
+          date: new Date().toISOString(),
+          truck: "",
+          createdAt: Date.now(),
+          status: "pending",
+        };
+        if (receiptFile) {
+          pending.photoBlob = receiptFile;
+          pending.photoName = receiptFile.name;
+        }
+        await addToQueue(pending);
+        toast({ title: "Расход сохранён локально", description: "Отправится при появлении сети" });
+      } else {
+        await api.addExpense({
+          driverId: user.id,
+          date: new Date().toISOString(),
+          amount: Number(amount),
+          currency,
+          category,
+          comment,
+          receiptUrl,
+        });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["expenses", user.id] });
+      toast({ title: editingExpense ? "Расход обновлён" : "Расход добавлен" });
+      vibrateSuccess();
+    } catch {
+      // Network error — save offline
+      if (!editingExpense) {
+        const pending: PendingExpense = {
+          type: "expense",
+          id: `exp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          driverId: user.id,
+          amount: Number(amount),
+          currency,
+          category,
+          comment,
+          date: new Date().toISOString(),
+          truck: "",
+          createdAt: Date.now(),
+          status: "pending",
+        };
+        if (receiptFile) {
+          pending.photoBlob = receiptFile;
+          pending.photoName = receiptFile.name;
+        }
+        await addToQueue(pending);
+        toast({ title: "Нет сети — сохранено локально" });
+      }
     }
 
-    queryClient.invalidateQueries({ queryKey: ["expenses", user.id] });
-    toast({ title: editingExpense ? "Расход обновлён" : "Расход добавлен" });
-    vibrateSuccess();
     setSaving(false);
     setDialogOpen(false);
     resetForm();
@@ -147,7 +198,8 @@ const Expenses = () => {
 
   return (
     <PageLayout title="Расходы">
-      <div className="mb-4">
+      <OfflineBanner />
+      <div className="mb-4 mt-2">
         {showExpensesHint && (
           <div className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-foreground flex items-center justify-between gap-2 mb-3">
             <span>Нажмите «Добавить расход», чтобы зафиксировать трату</span>
@@ -238,7 +290,7 @@ const Expenses = () => {
                     </div>
                   </div>
                 ) : (
-                  <PhotoUpload label="Фото чека" onUpload={setReceiptUrl} />
+                  <PhotoUpload label="Фото чека" onUpload={setReceiptUrl} onFileReady={(f) => setReceiptFile(f)} />
                 )
               )}
               <Button
