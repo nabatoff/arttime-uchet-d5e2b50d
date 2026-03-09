@@ -434,7 +434,7 @@ const AdminExpenses = () => {
               )}
 
               {addType === "expense" && (
-                <Select value={addTruck} onValueChange={setAddTruck}>
+                <Select value={addTruck || "__none__"} onValueChange={(v) => setAddTruck(v === "__none__" ? "" : v)}>
                   <SelectTrigger className="bg-secondary border-border">
                     <SelectValue placeholder="Тягач (необязательно)" />
                   </SelectTrigger>
