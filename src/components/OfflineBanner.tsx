@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { WifiOff, CloudUpload, Loader2 } from "lucide-react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { cn } from "@/lib/utils";
@@ -49,7 +50,5 @@ const OfflineBanner = () => {
     </div>
   );
 };
-
-import { useState } from "react";
 
 export default OfflineBanner;
