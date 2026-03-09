@@ -95,6 +95,7 @@ const Expenses = () => {
     setCategory("");
     setComment("");
     setReceiptUrl("");
+    setReceiptFile(null);
     setEditingExpense(null);
   };
 
@@ -117,30 +118,77 @@ const Expenses = () => {
     if (!user || !amount || !category || (!receiptUrl && !selectedCategoryNoReceipt)) return;
     setSaving(true);
 
-    if (editingExpense) {
-      await api.updateExpense({
-        ...editingExpense,
-        amount: Number(amount),
-        currency,
-        category,
-        comment,
-        receiptUrl,
-      });
-    } else {
-      await api.addExpense({
-        driverId: user.id,
-        date: new Date().toISOString(),
-        amount: Number(amount),
-        currency,
-        category,
-        comment,
-        receiptUrl,
-      });
+    try {
+      if (editingExpense) {
+        await api.updateExpense({
+          ...editingExpense,
+          amount: Number(amount),
+          currency,
+          category,
+          comment,
+          receiptUrl: receiptUrl === "__offline__" ? "" : receiptUrl,
+        });
+      } else if (!navigator.onLine || receiptUrl === "__offline__") {
+        // Save to offline queue
+        const pending: PendingExpense = {
+          type: "expense",
+          id: `exp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          driverId: user.id,
+          amount: Number(amount),
+          currency,
+          category,
+          comment,
+          date: new Date().toISOString(),
+          truck: "",
+          createdAt: Date.now(),
+          status: "pending",
+        };
+        if (receiptFile) {
+          pending.photoBlob = receiptFile;
+          pending.photoName = receiptFile.name;
+        }
+        await addToQueue(pending);
+        toast({ title: "Расход сохранён локально", description: "Отправится при появлении сети" });
+      } else {
+        await api.addExpense({
+          driverId: user.id,
+          date: new Date().toISOString(),
+          amount: Number(amount),
+          currency,
+          category,
+          comment,
+          receiptUrl,
+        });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["expenses", user.id] });
+      toast({ title: editingExpense ? "Расход обновлён" : "Расход добавлен" });
+      vibrateSuccess();
+    } catch {
+      // Network error — save offline
+      if (!editingExpense) {
+        const pending: PendingExpense = {
+          type: "expense",
+          id: `exp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          driverId: user.id,
+          amount: Number(amount),
+          currency,
+          category,
+          comment,
+          date: new Date().toISOString(),
+          truck: "",
+          createdAt: Date.now(),
+          status: "pending",
+        };
+        if (receiptFile) {
+          pending.photoBlob = receiptFile;
+          pending.photoName = receiptFile.name;
+        }
+        await addToQueue(pending);
+        toast({ title: "Нет сети — сохранено локально" });
+      }
     }
 
-    queryClient.invalidateQueries({ queryKey: ["expenses", user.id] });
-    toast({ title: editingExpense ? "Расход обновлён" : "Расход добавлен" });
-    vibrateSuccess();
     setSaving(false);
     setDialogOpen(false);
     resetForm();
