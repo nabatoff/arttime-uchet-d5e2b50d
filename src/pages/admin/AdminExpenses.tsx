@@ -439,7 +439,7 @@ const AdminExpenses = () => {
                     <SelectValue placeholder="Тягач (необязательно)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">—</SelectItem>
+                    <SelectItem value="__none__">—</SelectItem>
                     {trucks.map((t) => (
                       <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
                     ))}
