@@ -84,6 +84,9 @@
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
 
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
     --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
 
