@@ -434,12 +434,12 @@ const AdminExpenses = () => {
               )}
 
               {addType === "expense" && (
-                <Select value={addTruck} onValueChange={setAddTruck}>
+                <Select value={addTruck || "__none__"} onValueChange={(v) => setAddTruck(v === "__none__" ? "" : v)}>
                   <SelectTrigger className="bg-secondary border-border">
                     <SelectValue placeholder="Тягач (необязательно)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">—</SelectItem>
+                    <SelectItem value="__none__">—</SelectItem>
                     {trucks.map((t) => (
                       <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
                     ))}
@@ -823,12 +823,12 @@ const AdminExpenses = () => {
               ))}
             </div>
             <Input placeholder="Комментарий" value={editComment} onChange={(e) => setEditComment(e.target.value)} className="bg-secondary border-border" />
-            <Select value={editTruck} onValueChange={setEditTruck}>
+            <Select value={editTruck || "__none__"} onValueChange={(v) => setEditTruck(v === "__none__" ? "" : v)}>
               <SelectTrigger className="bg-secondary border-border">
                 <SelectValue placeholder="Тягач" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">—</SelectItem>
+                <SelectItem value="__none__">—</SelectItem>
                 {trucks.map((t) => (
                   <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
                 ))}
