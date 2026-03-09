@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/services/api";
 import PageLayout from "@/components/PageLayout";
 import PhotoUpload from "@/components/PhotoUpload";
+import OfflineBanner from "@/components/OfflineBanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +17,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useScrollReveal } from "@/hooks/useGsap";
 import { useToast } from "@/hooks/use-toast";
 import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
+import { addToQueue, type PendingExpense } from "@/services/offlineQueue";
 
 const Expenses = () => {
   const { user } = useAuth();
@@ -34,6 +36,7 @@ const Expenses = () => {
   const [category, setCategory] = useState("");
   const [comment, setComment] = useState("");
   const [receiptUrl, setReceiptUrl] = useState("");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
   const activeCurrencies: Currency[] =
