@@ -112,6 +112,7 @@ const Mileage = () => {
 
   return (
     <PageLayout title="Отчет по пробегу">
+      <OfflineBanner />
       <div className="flex flex-col items-center justify-center py-8 animate-fade-in">
         <p className="mb-6 text-center text-muted-foreground">
           Для начала работы укажите текущий пробег, тягач и загрузите фото спидометра
@@ -137,6 +138,7 @@ const Mileage = () => {
           <PhotoUpload
             label="Фото спидометра"
             onUpload={setPhotoUrl}
+            onFileReady={(f) => setPhotoFile(f)}
           />
           {showMileageHint && (
             <div className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-foreground flex items-center justify-between gap-2">
