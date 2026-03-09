@@ -1,15 +1,20 @@
 import { useState, useRef } from "react";
 import { Camera, CheckCircle, Loader2, X } from "lucide-react";
 import { uploadToImgBB } from "@/services/imgbb";
+import { compressImage } from "@/services/imageCompression";
 import { cn } from "@/lib/utils";
 
 interface PhotoUploadProps {
   onUpload: (url: string) => void;
+  /** Called with the raw compressed File for offline storage */
+  onFileReady?: (file: File) => void;
   label?: string;
   className?: string;
+  /** If true, skip network upload — just provide the file locally */
+  offlineMode?: boolean;
 }
 
-const PhotoUpload = ({ onUpload, label = "Загрузить фото", className }: PhotoUploadProps) => {
+const PhotoUpload = ({ onUpload, onFileReady, label = "Загрузить фото", className, offlineMode }: PhotoUploadProps) => {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [uploaded, setUploaded] = useState(false);
@@ -29,12 +34,32 @@ const PhotoUpload = ({ onUpload, label = "Загрузить фото", classNam
     setUploaded(false);
 
     try {
-      const url = await uploadToImgBB(file);
-      onUpload(url);
-      setUploaded(true);
+      const compressed = await compressImage(file);
+
+      // Provide file for offline storage
+      onFileReady?.(compressed);
+
+      if (offlineMode || !navigator.onLine) {
+        // Don't upload, just keep locally
+        onUpload("__offline__");
+        setUploaded(true);
+      } else {
+        const url = await uploadToImgBB(compressed);
+        onUpload(url);
+        setUploaded(true);
+      }
     } catch {
-      setError("Ошибка загрузки. Попробуйте снова.");
-      setPreview(null);
+      // If upload fails, save for offline
+      try {
+        const compressed = await compressImage(file);
+        onFileReady?.(compressed);
+        onUpload("__offline__");
+        setUploaded(true);
+        setError("Нет сети — фото сохранено локально");
+      } catch {
+        setError("Ошибка загрузки. Попробуйте снова.");
+        setPreview(null);
+      }
     } finally {
       setUploading(false);
     }
@@ -45,6 +70,7 @@ const PhotoUpload = ({ onUpload, label = "Загрузить фото", classNam
     setUploaded(false);
     setError("");
     onUpload("");
+    onFileReady?.(undefined as unknown as File);
   };
 
   return (
@@ -109,7 +135,7 @@ const PhotoUpload = ({ onUpload, label = "Загрузить фото", classNam
         </div>
       )}
 
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className={cn("text-xs", error.includes("локально") ? "text-warning" : "text-destructive")}>{error}</p>}
     </div>
   );
 };
