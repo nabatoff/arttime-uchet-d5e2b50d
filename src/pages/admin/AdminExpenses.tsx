@@ -218,7 +218,7 @@ const AdminExpenses = () => {
   const hasActiveFilters = filterDriver !== "all" || filterCategory !== "all" || dateFrom || dateTo;
 
   const reloadData = () => {
-    queryClient.invalidateQueries({ queryKey: ["adminExpenses"] } as { queryKey: [string] });
+    queryClient.invalidateQueries({ queryKey: ["adminExpenses"] });
     queryClient.invalidateQueries({ queryKey: ["drivers"] });
   };
 
