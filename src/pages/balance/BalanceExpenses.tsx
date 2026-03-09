@@ -176,7 +176,7 @@ const BalanceExpenses = () => {
     });
     toast({ title: "Расход добавлен" });
     vibrateSuccess();
-    await queryClient.invalidateQueries({ queryKey: ["balanceExpenses"] as { queryKey: [string] } });
+    await queryClient.invalidateQueries({ queryKey: ["balanceExpenses"] });
     setSaving(false);
     setDialogOpen(false);
     resetForm();
