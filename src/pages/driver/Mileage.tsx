@@ -65,7 +65,8 @@ const Mileage = () => {
         markSubmitted();
         navigate("/dashboard", { replace: true });
       } else {
-        const result = await api.addMileage({
+        // Race: API call vs optimistic timeout (8s)
+        const apiCall = api.addMileage({
           driverId: user.id,
           driverName: user.name,
           driverPhoto: user.photo,
@@ -74,12 +75,28 @@ const Mileage = () => {
           photoUrl,
           truck: truck || undefined,
         });
-        if (result.success) {
+
+        const optimisticTimeout = new Promise<{ optimistic: true }>((resolve) =>
+          setTimeout(() => resolve({ optimistic: true }), 8000)
+        );
+
+        const raceResult = await Promise.race([apiCall, optimisticTimeout]);
+
+        if ("optimistic" in raceResult) {
+          // Server is slow but data likely saved — proceed
+          toast({ title: "Пробег отправлен", description: "Сервер подтвердит позже" });
+        } else if (raceResult.success) {
           toast({ title: "Пробег отправлен" });
-          vibrateSuccess();
-          markSubmitted();
-          navigate("/dashboard", { replace: true });
+        } else {
+          // API returned error — don't navigate
+          toast({ title: "Ошибка", description: raceResult.error, variant: "destructive" });
+          setSaving(false);
+          return;
         }
+
+        vibrateSuccess();
+        markSubmitted();
+        navigate("/dashboard", { replace: true });
       }
     } catch {
       // Network error — save offline
