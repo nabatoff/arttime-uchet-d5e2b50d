@@ -126,8 +126,8 @@ export const api = {
     apiPost("updatePreBalance", { targetUserId: driverId, currency, newAmount: amount, adminRole }),
 
   // Transfer from pre-balance to main balance
-  transfer: (fromDriverId: string, toDriverId: string, currency: Currency, amount: number, performedBy: string, comment?: string) =>
-    apiPost("transfer", { fromDriverId, toDriverId, currency, amount, performedBy, comment: comment ?? "" }),
+  transfer: (fromDriverId: string, toDriverId: string, currency: Currency, amount: number, performedBy: string, comment?: string, allowNegative?: boolean) =>
+    apiPost("transfer", { fromDriverId, toDriverId, currency, amount, performedBy, comment: comment ?? "", allowNegative: !!allowNegative }),
 
   // Get transfers history (optional: limit, offset, since, until — ISO date strings)
   getTransfers: (params?: { limit?: number; offset?: number; since?: string; until?: string }) =>
