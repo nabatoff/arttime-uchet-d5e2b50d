@@ -946,6 +946,63 @@ const AdminExpenses = () => {
           </button>
         </div>
       )}
+
+      {/* Edit transfer dialog */}
+      <Dialog open={editTransferOpen} onOpenChange={setEditTransferOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Редактировать перевод</DialogTitle>
+          </DialogHeader>
+          {editTransfer && (
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                {getDriverName(editTransfer.fromDriverId)} → {getDriverName(editTransfer.toDriverId)} ({editTransfer.currency})
+              </div>
+              <Input
+                placeholder="Сумма"
+                type="number"
+                value={editTransferAmount}
+                onChange={(e) => setEditTransferAmount(e.target.value)}
+                className="bg-secondary border-border"
+              />
+              <Input
+                placeholder="Комментарий"
+                value={editTransferComment}
+                onChange={(e) => setEditTransferComment(e.target.value)}
+                className="bg-secondary border-border"
+              />
+              <p className="text-xs text-muted-foreground">
+                При сохранении балансы будут пересчитаны автоматически.
+              </p>
+              <Button className="w-full" onClick={handleEditTransferSave} disabled={saving}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Сохранить
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete transfer confirmation */}
+      <AlertDialog open={!!deleteTransferTarget} onOpenChange={(open) => !open && setDeleteTransferTarget(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Удалить перевод?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTransferTarget && `${getDriverName(deleteTransferTarget.fromDriverId)} → ${getDriverName(deleteTransferTarget.toDriverId)}: ${Number(deleteTransferTarget.amount).toLocaleString("ru-RU")} ${CURRENCY_SYMBOLS[deleteTransferTarget.currency]}`}
+              <br />
+              Балансы будут пересчитаны автоматически.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTransfer} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </PageLayout>
   );
 };
