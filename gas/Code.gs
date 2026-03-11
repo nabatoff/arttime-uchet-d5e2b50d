@@ -616,7 +616,9 @@ function convertPreBalance(body) {
   var currentFrom = Number(preBalances[fromCurrency]) || 0;
 
   setPreBalance(driverId, fromCurrency, currentFrom - amount);
-  var convertedAmount = Math.round(amount * rate * 100) / 100;
+  // rate трактуем как «сколько единиц исходной валюты в 1 единице целевой»
+  // Пример: 1 RUB = 6.8 KZT, конвертация KZT → RUB: amount_KZT / 6.8
+  var convertedAmount = Math.round((amount / rate) * 100) / 100;
   var currentTo = Number(preBalances[toCurrency]) || 0;
   setPreBalance(driverId, toCurrency, currentTo + convertedAmount);
 

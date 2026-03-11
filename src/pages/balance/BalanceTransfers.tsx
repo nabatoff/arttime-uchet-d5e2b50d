@@ -96,7 +96,7 @@ const BalanceTransfers = () => {
 
   const convertedAmount =
     convAmount && convRate
-      ? Math.round(parseNumber(convAmount) * parseNumber(convRate) * 100) / 100
+      ? Math.round((parseNumber(convAmount) / parseNumber(convRate)) * 100) / 100
       : 0;
 
   const getDriverName = (id: string) => {
