@@ -91,7 +91,7 @@ const AdminDrivers = ({ backTo }: { backTo?: string } = {}) => {
       setNewPassword("");
       setNewName("");
       setNewCurrencies([]);
-      queryClient.invalidateQueries({ queryKey: ["drivers"] });
+      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
     } else {
       toast({ title: result.error || "Ошибка создания", variant: "destructive" });
     }
