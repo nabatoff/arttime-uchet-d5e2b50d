@@ -40,6 +40,11 @@ const PageLayout = ({ children, title, backTo }: PageLayoutProps) => {
     const isTouchDevice = typeof window !== "undefined" && "ontouchstart" in window;
     if (!isTouchDevice) return;
 
+    // Включаем кастомный pull-to-refresh только на iOS, на Android оставляем системный/браузерный.
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+    const isIOS = /iPhone|iPad|iPod/i.test(ua);
+    if (!isIOS) return;
+
     const handleTouchStart = (e: TouchEvent) => {
       if (window.scrollY > 0) return;
       if (refreshing) return;

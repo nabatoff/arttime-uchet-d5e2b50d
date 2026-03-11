@@ -96,7 +96,21 @@ const BalanceTransfers = () => {
 
   const convertedAmount =
     convAmount && convRate
-      ? Math.round((parseNumber(convAmount) / parseNumber(convRate)) * 100) / 100
+      ? (() => {
+          const amountNum = parseNumber(convAmount);
+          const rateNum = parseNumber(convRate);
+          if (!amountNum || !rateNum) return 0;
+          if (convFromCurrency === "RUB" && convToCurrency === "KZT") {
+            // RUB → KZT: количество рублей * rate (тенге за 1 рубль)
+            return Math.round(amountNum * rateNum * 100) / 100;
+          }
+          if (convFromCurrency === "KZT" && convToCurrency === "RUB") {
+            // KZT → RUB: количество тенге / rate (тенге за 1 рубль)
+            return Math.round((amountNum / rateNum) * 100) / 100;
+          }
+          // Остальные пары: по умолчанию делим
+          return Math.round((amountNum / rateNum) * 100) / 100;
+        })()
       : 0;
 
   const getDriverName = (id: string) => {
