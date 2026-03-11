@@ -103,7 +103,7 @@ const AdminDrivers = ({ backTo }: { backTo?: string } = {}) => {
     if (result.success) {
       toast({ title: `${driver.name} удалён` });
       setSelectedDriverId("");
-      queryClient.invalidateQueries({ queryKey: ["drivers"] });
+      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
     } else {
       toast({ title: result.error || "Ошибка удаления", variant: "destructive" });
     }
