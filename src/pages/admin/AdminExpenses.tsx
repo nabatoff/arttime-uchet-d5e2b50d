@@ -47,6 +47,12 @@ const AdminExpenses = () => {
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  // Transfer edit/delete
+  const [editTransfer, setEditTransfer] = useState<TransferRecord | null>(null);
+  const [editTransferOpen, setEditTransferOpen] = useState(false);
+  const [editTransferAmount, setEditTransferAmount] = useState("");
+  const [editTransferComment, setEditTransferComment] = useState("");
+  const [deleteTransferTarget, setDeleteTransferTarget] = useState<TransferRecord | null>(null);
   const { toast } = useToast();
 
   const defaultDateTo = endOfDay(new Date());
