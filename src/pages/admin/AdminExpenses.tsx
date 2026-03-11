@@ -829,6 +829,19 @@ const AdminExpenses = () => {
                   <span className="font-medium text-foreground">{getDriverName(t.fromDriverId)}</span>
                   <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
                   <span className="font-medium text-foreground">{getDriverName(t.toDriverId)}</span>
+                  <div className="flex-1" />
+                  <button
+                    className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    onClick={() => openEditTransfer(t)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setDeleteTransferTarget(t)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
                 <div className="mt-1 flex items-center justify-between">
                   <span className="text-sm font-bold text-primary">
@@ -838,6 +851,9 @@ const AdminExpenses = () => {
                     {format(new Date(t.date), "dd MMM, HH:mm", { locale: ru })}
                   </span>
                 </div>
+                {t.comment && (
+                  <p className="mt-0.5 text-[11px] text-muted-foreground/80 truncate">{t.comment}</p>
+                )}
                 {t.performedBy && (
                   <p className="mt-0.5 text-[11px] text-muted-foreground/70">Оператор: {t.performedBy}</p>
                 )}
