@@ -91,7 +91,13 @@ const BalanceTransfers = () => {
   // Conversion computed
   const convDriver = drivers.find((d) => String(d.id) === convDriverId);
   const convAvailable = convDriver?.preBalances?.[convFromCurrency] ?? 0;
-  const convertedAmount = convAmount && convRate ? Math.round(Number(convAmount) * Number(convRate) * 100) / 100 : 0;
+
+  const parseNumber = (value: string) => Number(value.replace(",", "."));
+
+  const convertedAmount =
+    convAmount && convRate
+      ? Math.round(parseNumber(convAmount) * parseNumber(convRate) * 100) / 100
+      : 0;
 
   const getDriverName = (id: string) => {
     const d = drivers.find((dr) => String(dr.id) === String(id));
@@ -138,7 +144,10 @@ const BalanceTransfers = () => {
   };
 
   const handleConvert = async () => {
-    if (!convDriverId || !convAmount || !convRate || Number(convAmount) <= 0 || Number(convRate) <= 0) {
+    const amountNum = parseNumber(convAmount);
+    const rateNum = parseNumber(convRate);
+
+    if (!convDriverId || !convAmount || !convRate || amountNum <= 0 || rateNum <= 0) {
       toast({ title: "Заполните все поля", variant: "destructive" });
       return;
     }
@@ -148,7 +157,14 @@ const BalanceTransfers = () => {
     }
 
     setConvSaving(true);
-    const result = await api.convertPreBalance(convDriverId, convFromCurrency, convToCurrency, Number(convAmount), Number(convRate), user?.id || "");
+    const result = await api.convertPreBalance(
+      convDriverId,
+      convFromCurrency,
+      convToCurrency,
+      amountNum,
+      rateNum,
+      user?.id || "",
+    );
     if (result.success) {
       toast({ title: `Конвертация выполнена: ${convertedAmount} ${CURRENCY_SYMBOLS[convToCurrency]}` });
       vibrateSuccess();
@@ -306,18 +322,19 @@ const BalanceTransfers = () => {
 
               <Input
                 placeholder="Сумма списания"
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={convAmount}
-                onChange={(e) => setConvAmount(e.target.value)}
+                onChange={(e) => setConvAmount(e.target.value.replace(",", "."))}
                 className="bg-secondary border-border"
               />
 
               <Input
                 placeholder="Курс обмена"
-                type="number"
-                step="any"
+                type="text"
+                inputMode="decimal"
                 value={convRate}
-                onChange={(e) => setConvRate(e.target.value)}
+                onChange={(e) => setConvRate(e.target.value.replace(",", "."))}
                 className="bg-secondary border-border"
               />
 

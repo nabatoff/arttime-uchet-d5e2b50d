@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { UserCircle, Sun, Moon, RefreshCw, ArrowLeft } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -20,6 +20,9 @@ const PageLayout = ({ children, title, backTo }: PageLayoutProps) => {
   const { theme, toggleTheme } = useTheme();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const startYRef = useRef(0);
 
   const handleRefresh = async () => {
     await queryClient.invalidateQueries();
@@ -33,12 +36,66 @@ const PageLayout = ({ children, title, backTo }: PageLayoutProps) => {
     setRefreshing(false);
   };
 
+  useEffect(() => {
+    const isTouchDevice = typeof window !== "undefined" && "ontouchstart" in window;
+    if (!isTouchDevice) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (window.scrollY > 0) return;
+      if (refreshing) return;
+      startYRef.current = e.touches[0].clientY;
+      setPulling(true);
+      setPullDistance(0);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!pulling) return;
+      const delta = e.touches[0].clientY - startYRef.current;
+      if (delta <= 0) {
+        setPullDistance(0);
+        return;
+      }
+      // ограничиваем до 100px, чтобы не тянуть бесконечно
+      const dist = Math.min(100, delta);
+      setPullDistance(dist);
+    };
+
+    const handleTouchEnd = async () => {
+      if (!pulling) return;
+      const threshold = 60;
+      const shouldRefresh = pullDistance >= threshold;
+      setPulling(false);
+      setPullDistance(0);
+      if (shouldRefresh) {
+        await handleDesktopRefresh();
+      }
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [pulling, pullDistance, refreshing]);
+
   const content = children;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {title && (
         <header className="sticky top-0 z-40 glass-header border-b border-border/60 px-4 pb-3 pt-safe-top">
+          {pulling && (
+            <div
+              className="flex items-center justify-center text-[11px] text-muted-foreground transition-transform duration-100"
+              style={{ transform: `translateY(${Math.min(pullDistance, 40)}px)` }}
+            >
+              {pullDistance < 60 ? "Потяните, чтобы обновить" : "Отпустите для обновления"}
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
               {backTo ? (
