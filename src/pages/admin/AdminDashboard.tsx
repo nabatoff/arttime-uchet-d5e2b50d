@@ -51,7 +51,15 @@ const AdminDashboard = () => {
     },
   });
 
-  const drivers = useMemo(() => allUsers.filter((d) => d.role.toLowerCase() === "driver"), [allUsers]);
+  // Для админского дашборда показываем как водителей, так и пользователей с ролью balance.
+  const drivers = useMemo(
+    () =>
+      allUsers.filter((d) => {
+        const role = (d.role || "driver").toString().toLowerCase();
+        return role === "driver" || role === "balance";
+      }),
+    [allUsers],
+  );
 
   useFadeIn(greetingRef, 0, [drivers.length]);
   useStaggerIn(cardsRef, ":scope > div", [currentIndex, drivers.length]);
