@@ -126,7 +126,7 @@ const AdminDrivers = ({ backTo }: { backTo?: string } = {}) => {
     const result = await api.updateDriver(selectedDriver.id, { [editingField]: editValue.trim() });
     if (result.success) {
       toast({ title: "Сохранено" });
-      queryClient.invalidateQueries({ queryKey: ["drivers"] });
+      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
     } else {
       toast({ title: result.error || "Ошибка сохранения", variant: "destructive" });
     }
