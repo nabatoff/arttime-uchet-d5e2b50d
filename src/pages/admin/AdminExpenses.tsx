@@ -268,7 +268,51 @@ const AdminExpenses = () => {
     await reloadData();
   };
 
-  const handleAddExpense = async () => {
+  const openEditTransfer = (t: TransferRecord) => {
+    setEditTransfer(t);
+    setEditTransferAmount(String(t.amount));
+    setEditTransferComment(t.comment || "");
+    setEditTransferOpen(true);
+  };
+
+  const handleEditTransferSave = async () => {
+    if (!editTransfer) return;
+    setSaving(true);
+    const result = await api.updateTransfer({
+      id: editTransfer.id,
+      fromDriverId: editTransfer.fromDriverId,
+      toDriverId: editTransfer.toDriverId,
+      currency: editTransfer.currency,
+      amount: Number(editTransferAmount),
+      comment: editTransferComment,
+    });
+    if (result.success) {
+      toast({ title: "Перевод обновлён" });
+      vibrateSuccess();
+    } else {
+      toast({ title: result.error || "Ошибка", variant: "destructive" });
+    }
+    setSaving(false);
+    setEditTransferOpen(false);
+    await reloadData();
+  };
+
+  const handleDeleteTransfer = async () => {
+    if (!deleteTransferTarget) return;
+    setSaving(true);
+    const result = await api.deleteTransfer(deleteTransferTarget.id);
+    if (result.success) {
+      toast({ title: "Перевод удалён, балансы пересчитаны" });
+      vibrateSuccess();
+    } else {
+      toast({ title: result.error || "Ошибка", variant: "destructive" });
+    }
+    setSaving(false);
+    setDeleteTransferTarget(null);
+    await reloadData();
+  };
+
+
     if (!addDriver || !addAmount) {
       toast({ title: "Выберите водителя и сумму", variant: "destructive" });
       return;
