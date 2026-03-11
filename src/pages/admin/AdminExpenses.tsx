@@ -114,15 +114,15 @@ const AdminExpenses = () => {
 
   const allExpenses = useMemo(() => data?.pages.flat() ?? [], [data]);
 
-  const { data: drivers = [] } = useQuery({
-    queryKey: ["drivers"],
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ["allUsers"],
     queryFn: async () => {
       const result = await api.getDrivers();
-      return result.success && result.data
-        ? result.data.filter((d) => (d.role ?? "").toString().toLowerCase() !== "admin")
-        : [] as User[];
+      return result.success && result.data ? result.data : [] as User[];
     },
   });
+
+  const drivers = useMemo(() => allUsers.filter((d) => (d.role ?? "").toString().toLowerCase() !== "admin"), [allUsers]);
 
   const { data: categories = [] } = useQuery({
     queryKey: ["appData"],
