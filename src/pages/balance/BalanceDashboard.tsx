@@ -44,14 +44,30 @@ const BalanceDashboard = () => {
   });
 
   const drivers = useMemo(() => {
-    if (currentUser && currentUser.role.toLowerCase() === "balance") {
+    const normalized = allUsers.map((d) => ({
+      ...d,
+      role: (d.role || "driver").toLowerCase() as User["role"],
+    }));
+
+    // Всегда показываем всех balance + всех driver.
+    const balances = normalized.filter((d) => d.role === "balance");
+    const onlyDrivers = normalized.filter((d) => d.role === "driver");
+
+    // Если есть текущий пользователь, ставим его первым.
+    if (currentUser) {
       const ordered: User[] = [];
-      const self = allUsers.find((d) => String(d.id) === String(currentUser.id));
-      if (self) ordered.push(self);
-      ordered.push(...allUsers.filter((d) => d.role.toLowerCase() === "driver"));
+      const self = normalized.find((d) => String(d.id) === String(currentUser.id));
+      if (self) {
+        ordered.push(self);
+      }
+      ordered.push(
+        ...balances.filter((d) => !self || String(d.id) !== String(self.id)),
+        ...onlyDrivers
+      );
       return ordered;
     }
-    return allUsers.filter((d) => d.role.toLowerCase() === "driver");
+
+    return [...balances, ...onlyDrivers];
   }, [allUsers, currentUser]);
 
   useFadeIn(greetingRef, 0, [drivers.length]);

@@ -556,10 +556,36 @@ function deleteTransfer(body) {
       var currency = String(obj.currency || "KZT");
       var amount = Number(obj.amount) || 0;
 
-      // Reverse: restore pre-balance, subtract from main balance
-      var preFrom = getPreBalancesForUser(fromDriverId);
-      setPreBalance(fromDriverId, currency, (Number(preFrom[currency]) || 0) + amount);
-      addToBalance(toDriverId, currency, -amount);
+      // Special case: конвертация предбаланса (fromDriverId === toDriverId, currency вида "KZT→RUB")
+      if (fromDriverId && fromDriverId === toDriverId && currency.indexOf("→") !== -1) {
+        var parts = currency.split("→");
+        var fromCurrency = String(parts[0] || "").trim();
+        var toCurrency = String(parts[1] || "").trim();
+
+        if (fromCurrency && toCurrency) {
+          var preBalances = getPreBalancesForUser(fromDriverId);
+          var currentFrom = Number(preBalances[fromCurrency]) || 0;
+          var currentTo = Number(preBalances[toCurrency]) || 0;
+
+          // В комментарии хранится текст: "Конвертация: A FROM → B TO (курс R)"
+          var commentText = String(obj.comment || "");
+          var convertedMatch = commentText.match(/→\s*([\d.,]+)/);
+          var convertedAmount = convertedMatch && convertedMatch[1]
+            ? Number(String(convertedMatch[1]).replace(",", "."))
+            : null;
+
+          // Если вдруг не смогли распарсить, просто не трогаем валюту назначения
+          setPreBalance(fromDriverId, fromCurrency, currentFrom + amount);
+          if (convertedAmount && convertedAmount > 0) {
+            setPreBalance(fromDriverId, toCurrency, currentTo - convertedAmount);
+          }
+        }
+      } else {
+        // Обычный перевод: вернуть предбаланс и вычесть из основного
+        var preFrom = getPreBalancesForUser(fromDriverId);
+        setPreBalance(fromDriverId, currency, (Number(preFrom[currency]) || 0) + amount);
+        addToBalance(toDriverId, currency, -amount);
+      }
 
       sheet.deleteRow(i + 1);
       return { success: true };
