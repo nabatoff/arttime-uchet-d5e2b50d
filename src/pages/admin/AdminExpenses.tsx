@@ -219,7 +219,8 @@ const AdminExpenses = () => {
 
   const reloadData = () => {
     queryClient.invalidateQueries({ queryKey: ["adminExpenses"] });
-    queryClient.invalidateQueries({ queryKey: ["drivers"] });
+    queryClient.invalidateQueries({ queryKey: ["allUsers"] });
+    queryClient.invalidateQueries({ queryKey: ["transfers-admin"] });
   };
 
   const openEditExpense = (expense: Expense) => {

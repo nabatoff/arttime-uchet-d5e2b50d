@@ -31,16 +31,15 @@ const AdminDrivers = ({ backTo }: { backTo?: string } = {}) => {
 
   const { toast } = useToast();
 
-  const { data: drivers = [], isLoading } = useQuery({
-    queryKey: ["drivers"],
+  const { data: allUsers = [], isLoading } = useQuery({
+    queryKey: ["allUsers"],
     queryFn: async () => {
       const result = await api.getDrivers();
-      if (result.success && result.data) {
-        return result.data.filter((d) => d.role.toLowerCase() !== "admin" && d.role.toLowerCase() !== "balance");
-      }
-      return [] as User[];
+      return result.success && result.data ? result.data : [] as User[];
     },
   });
+
+  const drivers = useMemo(() => allUsers.filter((d) => d.role.toLowerCase() !== "admin" && d.role.toLowerCase() !== "balance"), [allUsers]);
 
   const selectedDriver = drivers.find((d) => String(d.id) === selectedDriverId) || null;
 
