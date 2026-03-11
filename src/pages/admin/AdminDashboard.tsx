@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { api } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 import PageLayout from "@/components/PageLayout";
@@ -43,16 +43,15 @@ const AdminDashboard = () => {
   const greetingRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
 
-  const { data: drivers = [], isLoading } = useQuery({
-    queryKey: ["drivers"],
+  const { data: allUsers = [], isLoading } = useQuery({
+    queryKey: ["allUsers"],
     queryFn: async () => {
       const result = await api.getDrivers();
-      if (result.success && result.data) {
-        return result.data.filter((d) => d.role.toLowerCase() === "driver");
-      }
-      return [] as User[];
+      return result.success && result.data ? result.data : [] as User[];
     },
   });
+
+  const drivers = useMemo(() => allUsers.filter((d) => d.role.toLowerCase() === "driver"), [allUsers]);
 
   useFadeIn(greetingRef, 0, [drivers.length]);
   useStaggerIn(cardsRef, ":scope > div", [currentIndex, drivers.length]);

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { api } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 import PageLayout from "@/components/PageLayout";
@@ -35,28 +35,24 @@ const BalanceDashboard = () => {
   const greetingRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
 
-  const { data: drivers = [], isLoading } = useQuery({
-    queryKey: ["drivers", currentUser?.id],
+  const { data: allUsers = [], isLoading } = useQuery({
+    queryKey: ["allUsers"],
     queryFn: async () => {
       const result = await api.getDrivers();
-      if (!result.success || !result.data) return [] as User[];
-      const all = result.data;
-
-      // Для роли balance: сначала показываем самого пользователя, потом всех водителей
-      if (currentUser && currentUser.role.toLowerCase() === "balance") {
-        const ordered: User[] = [];
-        const self = all.find((d) => String(d.id) === String(currentUser.id));
-        if (self) ordered.push(self);
-        ordered.push(
-          ...all.filter((d) => d.role.toLowerCase() === "driver"),
-        );
-        return ordered;
-      }
-
-      // Для остальных — только водителей
-      return all.filter((d) => d.role.toLowerCase() === "driver");
+      return result.success && result.data ? result.data : [] as User[];
     },
   });
+
+  const drivers = useMemo(() => {
+    if (currentUser && currentUser.role.toLowerCase() === "balance") {
+      const ordered: User[] = [];
+      const self = allUsers.find((d) => String(d.id) === String(currentUser.id));
+      if (self) ordered.push(self);
+      ordered.push(...allUsers.filter((d) => d.role.toLowerCase() === "driver"));
+      return ordered;
+    }
+    return allUsers.filter((d) => d.role.toLowerCase() === "driver");
+  }, [allUsers, currentUser]);
 
   useFadeIn(greetingRef, 0, [drivers.length]);
   useStaggerIn(cardsRef, ":scope > div", [currentIndex, drivers.length]);

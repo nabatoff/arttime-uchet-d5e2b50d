@@ -47,6 +47,12 @@ const AdminExpenses = () => {
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  // Transfer edit/delete
+  const [editTransfer, setEditTransfer] = useState<TransferRecord | null>(null);
+  const [editTransferOpen, setEditTransferOpen] = useState(false);
+  const [editTransferAmount, setEditTransferAmount] = useState("");
+  const [editTransferComment, setEditTransferComment] = useState("");
+  const [deleteTransferTarget, setDeleteTransferTarget] = useState<TransferRecord | null>(null);
   const { toast } = useToast();
 
   const defaultDateTo = endOfDay(new Date());
@@ -114,15 +120,15 @@ const AdminExpenses = () => {
 
   const allExpenses = useMemo(() => data?.pages.flat() ?? [], [data]);
 
-  const { data: drivers = [] } = useQuery({
-    queryKey: ["drivers"],
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ["allUsers"],
     queryFn: async () => {
       const result = await api.getDrivers();
-      return result.success && result.data
-        ? result.data.filter((d) => (d.role ?? "").toString().toLowerCase() !== "admin")
-        : [] as User[];
+      return result.success && result.data ? result.data : [] as User[];
     },
   });
+
+  const drivers = useMemo(() => allUsers.filter((d) => (d.role ?? "").toString().toLowerCase() !== "admin"), [allUsers]);
 
   const { data: categories = [] } = useQuery({
     queryKey: ["appData"],
@@ -219,7 +225,8 @@ const AdminExpenses = () => {
 
   const reloadData = () => {
     queryClient.invalidateQueries({ queryKey: ["adminExpenses"] });
-    queryClient.invalidateQueries({ queryKey: ["drivers"] });
+    queryClient.invalidateQueries({ queryKey: ["allUsers"] });
+    queryClient.invalidateQueries({ queryKey: ["transfers-admin"] });
   };
 
   const openEditExpense = (expense: Expense) => {
@@ -261,7 +268,51 @@ const AdminExpenses = () => {
     await reloadData();
   };
 
-  const handleAddExpense = async () => {
+  const openEditTransfer = (t: TransferRecord) => {
+    setEditTransfer(t);
+    setEditTransferAmount(String(t.amount));
+    setEditTransferComment(t.comment || "");
+    setEditTransferOpen(true);
+  };
+
+  const handleEditTransferSave = async () => {
+    if (!editTransfer) return;
+    setSaving(true);
+    const result = await api.updateTransfer({
+      id: editTransfer.id,
+      fromDriverId: editTransfer.fromDriverId,
+      toDriverId: editTransfer.toDriverId,
+      currency: editTransfer.currency,
+      amount: Number(editTransferAmount),
+      comment: editTransferComment,
+    });
+    if (result.success) {
+      toast({ title: "Перевод обновлён" });
+      vibrateSuccess();
+    } else {
+      toast({ title: result.error || "Ошибка", variant: "destructive" });
+    }
+    setSaving(false);
+    setEditTransferOpen(false);
+    await reloadData();
+  };
+
+  const handleDeleteTransfer = async () => {
+    if (!deleteTransferTarget) return;
+    setSaving(true);
+    const result = await api.deleteTransfer(deleteTransferTarget.id);
+    if (result.success) {
+      toast({ title: "Перевод удалён, балансы пересчитаны" });
+      vibrateSuccess();
+    } else {
+      toast({ title: result.error || "Ошибка", variant: "destructive" });
+    }
+    setSaving(false);
+    setDeleteTransferTarget(null);
+    await reloadData();
+  };
+
+
     if (!addDriver || !addAmount) {
       toast({ title: "Выберите водителя и сумму", variant: "destructive" });
       return;
@@ -778,6 +829,19 @@ const AdminExpenses = () => {
                   <span className="font-medium text-foreground">{getDriverName(t.fromDriverId)}</span>
                   <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
                   <span className="font-medium text-foreground">{getDriverName(t.toDriverId)}</span>
+                  <div className="flex-1" />
+                  <button
+                    className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    onClick={() => openEditTransfer(t)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setDeleteTransferTarget(t)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
                 <div className="mt-1 flex items-center justify-between">
                   <span className="text-sm font-bold text-primary">
@@ -787,6 +851,9 @@ const AdminExpenses = () => {
                     {format(new Date(t.date), "dd MMM, HH:mm", { locale: ru })}
                   </span>
                 </div>
+                {t.comment && (
+                  <p className="mt-0.5 text-[11px] text-muted-foreground/80 truncate">{t.comment}</p>
+                )}
                 {t.performedBy && (
                   <p className="mt-0.5 text-[11px] text-muted-foreground/70">Оператор: {t.performedBy}</p>
                 )}
@@ -879,6 +946,63 @@ const AdminExpenses = () => {
           </button>
         </div>
       )}
+
+      {/* Edit transfer dialog */}
+      <Dialog open={editTransferOpen} onOpenChange={setEditTransferOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Редактировать перевод</DialogTitle>
+          </DialogHeader>
+          {editTransfer && (
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                {getDriverName(editTransfer.fromDriverId)} → {getDriverName(editTransfer.toDriverId)} ({editTransfer.currency})
+              </div>
+              <Input
+                placeholder="Сумма"
+                type="number"
+                value={editTransferAmount}
+                onChange={(e) => setEditTransferAmount(e.target.value)}
+                className="bg-secondary border-border"
+              />
+              <Input
+                placeholder="Комментарий"
+                value={editTransferComment}
+                onChange={(e) => setEditTransferComment(e.target.value)}
+                className="bg-secondary border-border"
+              />
+              <p className="text-xs text-muted-foreground">
+                При сохранении балансы будут пересчитаны автоматически.
+              </p>
+              <Button className="w-full" onClick={handleEditTransferSave} disabled={saving}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Сохранить
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete transfer confirmation */}
+      <AlertDialog open={!!deleteTransferTarget} onOpenChange={(open) => !open && setDeleteTransferTarget(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Удалить перевод?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTransferTarget && `${getDriverName(deleteTransferTarget.fromDriverId)} → ${getDriverName(deleteTransferTarget.toDriverId)}: ${Number(deleteTransferTarget.amount).toLocaleString("ru-RU")} ${CURRENCY_SYMBOLS[deleteTransferTarget.currency]}`}
+              <br />
+              Балансы будут пересчитаны автоматически.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTransfer} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </PageLayout>
   );
 };

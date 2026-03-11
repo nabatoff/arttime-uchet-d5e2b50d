@@ -20,6 +20,9 @@ function doPost(e) {
       updatePreBalance: updatePreBalance,
       transfer: transfer,
       getTransfers: getTransfers,
+      updateTransfer: updateTransfer,
+      deleteTransfer: deleteTransfer,
+      convertPreBalance: convertPreBalance,
       getExpenses: getExpenses,
       saveExpense: saveExpense,
       updateExpense: updateExpense,
@@ -415,8 +418,16 @@ function updatePreBalance(body) {
 
 function getTransfersSheet() {
   return getOrCreateSheet("Transfers", [
-    "id", "fromDriverId", "toDriverId", "currency", "amount", "date", "performedBy"
+    "id", "fromDriverId", "toDriverId", "currency", "amount", "date", "performedBy", "comment"
   ]);
+}
+
+function ensureTransfersCommentColumn(sheet) {
+  var lastCol = sheet.getLastColumn();
+  if (lastCol === 0) return;
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  if (headers.indexOf("comment") !== -1) return;
+  sheet.getRange(1, lastCol + 1).setValue("comment");
 }
 
 function getDriverName(userId) {
@@ -435,6 +446,8 @@ function transfer(body) {
   var currency = String(body.currency || "KZT");
   var amount = Number(body.amount || 0);
   var performedById = String(body.performedBy || "");
+  var comment = String(body.comment || "");
+  var allowNegative = !!body.allowNegative;
 
   if (!fromDriverId || !toDriverId) {
     return { success: false, error: "Не указаны водители" };
@@ -445,7 +458,7 @@ function transfer(body) {
 
   var preFrom = getPreBalancesForUser(fromDriverId);
   var currentPre = Number(preFrom[currency]) || 0;
-  if (currentPre < amount) {
+  if (!allowNegative && currentPre < amount) {
     return { success: false, error: "Недостаточно средств на предбалансе" };
   }
 
@@ -456,6 +469,7 @@ function transfer(body) {
   if (!performerName && performedById) performerName = performedById;
 
   var sheet = getTransfersSheet();
+  ensureTransfersCommentColumn(sheet);
   var id = Utilities.getUuid();
   var date = new Date();
 
@@ -466,10 +480,140 @@ function transfer(body) {
     currency,
     amount,
     date,
-    performerName
+    performerName,
+    comment
   ]);
 
   return { success: true };
+}
+
+function updateTransfer(body) {
+  var transferId = String(body.id || "");
+  if (!transferId) return { success: false, error: "Не указан ID перевода" };
+
+  var sheet = getTransfersSheet();
+  ensureTransfersCommentColumn(sheet);
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+
+  var targetRow = -1;
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === transferId) {
+      targetRow = i;
+      break;
+    }
+  }
+  if (targetRow === -1) return { success: false, error: "Перевод не найден" };
+
+  var oldObj = rowToObj(headers, rows[targetRow]);
+  var oldFromDriverId = String(oldObj.fromDriverId || "");
+  var oldToDriverId = String(oldObj.toDriverId || "");
+  var oldCurrency = String(oldObj.currency || "KZT");
+  var oldAmount = Number(oldObj.amount) || 0;
+
+  // Reverse old transfer: restore pre-balance, subtract from main balance
+  var oldPreFrom = getPreBalancesForUser(oldFromDriverId);
+  setPreBalance(oldFromDriverId, oldCurrency, (Number(oldPreFrom[oldCurrency]) || 0) + oldAmount);
+  addToBalance(oldToDriverId, oldCurrency, -oldAmount);
+
+  // Apply new transfer
+  var newFromDriverId = String(body.fromDriverId || oldFromDriverId);
+  var newToDriverId = String(body.toDriverId || oldToDriverId);
+  var newCurrency = String(body.currency || oldCurrency);
+  var newAmount = Number(body.amount) || oldAmount;
+  var newComment = body.comment !== undefined ? String(body.comment) : String(oldObj.comment || "");
+
+  var newPreFrom = getPreBalancesForUser(newFromDriverId);
+  setPreBalance(newFromDriverId, newCurrency, (Number(newPreFrom[newCurrency]) || 0) - newAmount);
+  addToBalance(newToDriverId, newCurrency, newAmount);
+
+  // Update row
+  var colMap = {};
+  for (var c = 0; c < headers.length; c++) colMap[String(headers[c])] = c;
+
+  if (colMap.fromDriverId !== undefined) sheet.getRange(targetRow + 1, colMap.fromDriverId + 1).setValue(newFromDriverId);
+  if (colMap.toDriverId !== undefined) sheet.getRange(targetRow + 1, colMap.toDriverId + 1).setValue(newToDriverId);
+  if (colMap.currency !== undefined) sheet.getRange(targetRow + 1, colMap.currency + 1).setValue(newCurrency);
+  if (colMap.amount !== undefined) sheet.getRange(targetRow + 1, colMap.amount + 1).setValue(newAmount);
+  if (colMap.comment !== undefined) sheet.getRange(targetRow + 1, colMap.comment + 1).setValue(newComment);
+
+  return { success: true };
+}
+
+function deleteTransfer(body) {
+  var transferId = String(body.transferId || "");
+  if (!transferId) return { success: false, error: "Не указан ID перевода" };
+
+  var sheet = getTransfersSheet();
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === transferId) {
+      var obj = rowToObj(headers, rows[i]);
+      var fromDriverId = String(obj.fromDriverId || "");
+      var toDriverId = String(obj.toDriverId || "");
+      var currency = String(obj.currency || "KZT");
+      var amount = Number(obj.amount) || 0;
+
+      // Reverse: restore pre-balance, subtract from main balance
+      var preFrom = getPreBalancesForUser(fromDriverId);
+      setPreBalance(fromDriverId, currency, (Number(preFrom[currency]) || 0) + amount);
+      addToBalance(toDriverId, currency, -amount);
+
+      sheet.deleteRow(i + 1);
+      return { success: true };
+    }
+  }
+  return { success: false, error: "Перевод не найден" };
+}
+
+function convertPreBalance(body) {
+  var driverId = String(body.driverId || "");
+  var fromCurrency = String(body.fromCurrency || "");
+  var toCurrency = String(body.toCurrency || "");
+  var amount = Number(body.amount || 0);
+  var rate = Number(body.rate || 0);
+  var performedById = String(body.performedBy || "");
+
+  if (!driverId || !fromCurrency || !toCurrency) {
+    return { success: false, error: "Не все параметры указаны" };
+  }
+  if (!(amount > 0) || !(rate > 0)) {
+    return { success: false, error: "Сумма и курс должны быть > 0" };
+  }
+  if (fromCurrency === toCurrency) {
+    return { success: false, error: "Валюты должны отличаться" };
+  }
+
+  var preBalances = getPreBalancesForUser(driverId);
+  var currentFrom = Number(preBalances[fromCurrency]) || 0;
+
+  setPreBalance(driverId, fromCurrency, currentFrom - amount);
+  var convertedAmount = Math.round(amount * rate * 100) / 100;
+  var currentTo = Number(preBalances[toCurrency]) || 0;
+  setPreBalance(driverId, toCurrency, currentTo + convertedAmount);
+
+  var performerName = performedById ? getDriverName(performedById) : "";
+  if (!performerName && performedById) performerName = performedById;
+
+  var sheet = getTransfersSheet();
+  ensureTransfersCommentColumn(sheet);
+  var id = Utilities.getUuid();
+  var date = new Date();
+
+  sheet.appendRow([
+    id,
+    driverId,
+    driverId,
+    fromCurrency + "→" + toCurrency,
+    amount,
+    date,
+    performerName,
+    "Конвертация: " + amount + " " + fromCurrency + " → " + convertedAmount + " " + toCurrency + " (курс " + rate + ")"
+  ]);
+
+  return { success: true, data: { convertedAmount: convertedAmount } };
 }
 
 function getTransfers(body) {
@@ -484,6 +628,7 @@ function getTransfers(body) {
   }
 
   var sheet = getTransfersSheet();
+  ensureTransfersCommentColumn(sheet);
   var rows = sheet.getDataRange().getValues();
   var headers = rows[0];
   var result = [];
@@ -501,7 +646,8 @@ function getTransfers(body) {
       currency: String(r.currency || "KZT"),
       amount: Number(r.amount) || 0,
       date: formatDate(r.date),
-      performedBy: String(r.performedBy || "")
+      performedBy: String(r.performedBy || ""),
+      comment: String(r.comment || "")
     });
   }
 

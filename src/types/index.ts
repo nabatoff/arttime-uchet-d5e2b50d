@@ -71,6 +71,7 @@ export interface TransferRecord {
   amount: number;
   date: string;
   performedBy: string;
+  comment?: string;
 }
 
 export type CategoryVisibleTo = "driver" | "balance" | "both";

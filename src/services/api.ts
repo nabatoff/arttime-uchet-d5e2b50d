@@ -126,12 +126,24 @@ export const api = {
     apiPost("updatePreBalance", { targetUserId: driverId, currency, newAmount: amount, adminRole }),
 
   // Transfer from pre-balance to main balance
-  transfer: (fromDriverId: string, toDriverId: string, currency: Currency, amount: number, performedBy: string) =>
-    apiPost("transfer", { fromDriverId, toDriverId, currency, amount, performedBy }),
+  transfer: (fromDriverId: string, toDriverId: string, currency: Currency, amount: number, performedBy: string, comment?: string, allowNegative?: boolean) =>
+    apiPost("transfer", { fromDriverId, toDriverId, currency, amount, performedBy, comment: comment ?? "", allowNegative: !!allowNegative }),
 
   // Get transfers history (optional: limit, offset, since, until — ISO date strings)
   getTransfers: (params?: { limit?: number; offset?: number; since?: string; until?: string }) =>
     apiPost<TransferRecord[]>("getTransfers", params ?? {}),
+
+  // Update transfer (admin only) — recalculates balances
+  updateTransfer: (transfer: { id: string; fromDriverId: string; toDriverId: string; currency: Currency; amount: number; comment?: string }) =>
+    apiPost("updateTransfer", transfer),
+
+  // Delete transfer (admin only) — reverses balance changes
+  deleteTransfer: (transferId: string) =>
+    apiPost("deleteTransfer", { transferId }),
+
+  // Convert currency on pre-balance
+  convertPreBalance: (driverId: string, fromCurrency: Currency, toCurrency: Currency, amount: number, rate: number, performedBy: string) =>
+    apiPost("convertPreBalance", { driverId, fromCurrency, toCurrency, amount, rate, performedBy }),
 
   // Expenses (optional: limit, offset, since, until — ISO date strings)
   getExpenses: (driverId: string, role?: string, params?: { limit?: number; offset?: number; since?: string; until?: string }) =>

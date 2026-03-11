@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { api } from "@/services/api";
 import PageLayout from "@/components/PageLayout";
 import { Button } from "@/components/ui/button";
@@ -31,16 +31,15 @@ const AdminDrivers = ({ backTo }: { backTo?: string } = {}) => {
 
   const { toast } = useToast();
 
-  const { data: drivers = [], isLoading } = useQuery({
-    queryKey: ["drivers"],
+  const { data: allUsers = [], isLoading } = useQuery({
+    queryKey: ["allUsers"],
     queryFn: async () => {
       const result = await api.getDrivers();
-      if (result.success && result.data) {
-        return result.data.filter((d) => d.role.toLowerCase() !== "admin" && d.role.toLowerCase() !== "balance");
-      }
-      return [] as User[];
+      return result.success && result.data ? result.data : [] as User[];
     },
   });
+
+  const drivers = useMemo(() => allUsers.filter((d) => d.role.toLowerCase() !== "admin" && d.role.toLowerCase() !== "balance"), [allUsers]);
 
   const selectedDriver = drivers.find((d) => String(d.id) === selectedDriverId) || null;
 
@@ -92,7 +91,7 @@ const AdminDrivers = ({ backTo }: { backTo?: string } = {}) => {
       setNewPassword("");
       setNewName("");
       setNewCurrencies([]);
-      queryClient.invalidateQueries({ queryKey: ["drivers"] });
+      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
     } else {
       toast({ title: result.error || "Ошибка создания", variant: "destructive" });
     }
@@ -104,7 +103,7 @@ const AdminDrivers = ({ backTo }: { backTo?: string } = {}) => {
     if (result.success) {
       toast({ title: `${driver.name} удалён` });
       setSelectedDriverId("");
-      queryClient.invalidateQueries({ queryKey: ["drivers"] });
+      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
     } else {
       toast({ title: result.error || "Ошибка удаления", variant: "destructive" });
     }
@@ -127,7 +126,7 @@ const AdminDrivers = ({ backTo }: { backTo?: string } = {}) => {
     const result = await api.updateDriver(selectedDriver.id, { [editingField]: editValue.trim() });
     if (result.success) {
       toast({ title: "Сохранено" });
-      queryClient.invalidateQueries({ queryKey: ["drivers"] });
+      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
     } else {
       toast({ title: result.error || "Ошибка сохранения", variant: "destructive" });
     }
