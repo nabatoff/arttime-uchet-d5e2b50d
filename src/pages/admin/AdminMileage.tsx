@@ -52,13 +52,15 @@ const AdminMileage = () => {
 
   const reports = useMemo(() => reportsData?.pages.flat() ?? [], [reportsData]);
 
-  const { data: drivers = [] } = useQuery({
-    queryKey: ["drivers"],
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ["allUsers"],
     queryFn: async () => {
       const result = await api.getDrivers();
-      return result.success && result.data ? result.data.filter((d) => d.role === "driver") : [] as User[];
+      return result.success && result.data ? result.data : [] as User[];
     },
   });
+
+  const drivers = useMemo(() => allUsers.filter((d) => d.role === "driver"), [allUsers]);
 
   const filtered = useMemo(() => {
     return reports.filter((r) => {
