@@ -39,7 +39,7 @@ const BalanceTransfers = () => {
   const [convSaving, setConvSaving] = useState(false);
 
   const defaultDateTo = endOfDay(new Date());
-  const defaultDateFrom = startOfDay(subDays(new Date(), 30));
+  const defaultDateFrom = startOfDay(new Date());
   const [dateFrom, setDateFrom] = useState<Date | undefined>(() => defaultDateFrom);
   const [dateTo, setDateTo] = useState<Date | undefined>(() => defaultDateTo);
   const since = dateFrom ? startOfDay(dateFrom).toISOString() : undefined;
@@ -77,7 +77,13 @@ const BalanceTransfers = () => {
     initialPageParam: 0,
   });
 
-  const transfers = useMemo(() => transfersData?.pages.flat() ?? [], [transfersData]);
+  const transfers = useMemo(
+    () =>
+      [...(transfersData?.pages.flat() ?? [])].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      ),
+    [transfersData],
+  );
 
   const fromDriver = drivers.find((d) => String(d.id) === fromDriverId);
   const availablePreBalance = fromDriver?.preBalances?.[currency] ?? 0;

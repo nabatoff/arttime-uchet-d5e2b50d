@@ -39,7 +39,12 @@ const AdminDrivers = ({ backTo }: { backTo?: string } = {}) => {
     },
   });
 
-  const drivers = useMemo(() => allUsers.filter((d) => d.role.toLowerCase() !== "admin" && d.role.toLowerCase() !== "balance"), [allUsers]);
+  // В админском списке теперь показываем и водителей, и пользователей с ролью balance.
+  // Исключаем только админов.
+  const drivers = useMemo(
+    () => allUsers.filter((d) => (d.role || "").toString().toLowerCase() !== "admin"),
+    [allUsers],
+  );
 
   const selectedDriver = drivers.find((d) => String(d.id) === selectedDriverId) || null;
 

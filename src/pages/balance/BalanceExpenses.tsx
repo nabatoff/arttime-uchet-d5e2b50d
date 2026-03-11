@@ -41,7 +41,7 @@ const BalanceExpenses = () => {
   const [saving, setSaving] = useState(false);
 
   const defaultDateTo = endOfDay(new Date());
-  const defaultDateFrom = startOfDay(subDays(new Date(), 30));
+  const defaultDateFrom = startOfDay(new Date());
 
   const [filterDriver, setFilterDriver] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");

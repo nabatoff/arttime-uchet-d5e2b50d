@@ -56,7 +56,7 @@ const AdminExpenses = () => {
   const { toast } = useToast();
 
   const defaultDateTo = endOfDay(new Date());
-  const defaultDateFrom = startOfDay(subDays(new Date(), 30));
+  const defaultDateFrom = startOfDay(new Date());
 
   const ADMIN_EXPENSES_FILTERS_KEY = "admin-expenses-filters";
 
