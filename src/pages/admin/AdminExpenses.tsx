@@ -312,7 +312,7 @@ const AdminExpenses = () => {
     await reloadData();
   };
 
-
+  const handleAddExpense = async () => {
     if (!addDriver || !addAmount) {
       toast({ title: "Выберите водителя и сумму", variant: "destructive" });
       return;
