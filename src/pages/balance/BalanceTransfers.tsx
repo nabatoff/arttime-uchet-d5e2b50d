@@ -143,7 +143,7 @@ const BalanceTransfers = () => {
     }
 
     setSaving(true);
-    const result = await api.transfer(fromDriverId, toDriverId, currency, Number(amount), user?.id || "", comment, true);
+    const result = await api.transfer(fromDriverId, toDriverId, currency, parseNumber(amount), user?.id || "", comment, true);
     if (result.success) {
       toast({ title: "Перевод выполнен" });
       vibrateSuccess();
@@ -260,9 +260,10 @@ const BalanceTransfers = () => {
 
               <Input
                 placeholder="Сумма"
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => setAmount(e.target.value.replace(",", "."))}
                 className="bg-secondary border-border"
               />
 

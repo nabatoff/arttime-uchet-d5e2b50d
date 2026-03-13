@@ -190,6 +190,14 @@ export const api = {
   getMileage: (driverId?: string, params?: { limit?: number; offset?: number; since?: string; until?: string }) =>
     apiPost<MileageReport[]>("getMileage", { userId: driverId, ...params }),
 
+  // Update mileage record (admin)
+  updateMileage: (data: { id: string; km?: number; truck?: string }) =>
+    apiPost("updateMileage", data),
+
+  // Delete mileage record (admin)
+  deleteMileage: (mileageId: string) =>
+    apiPost("deleteMileage", { mileageId }),
+
   // Get all drivers/users
   getDrivers: async (): Promise<ApiResponse<User[]>> => {
     const result = await apiPost<Record<string, unknown>[]>("getDrivers");

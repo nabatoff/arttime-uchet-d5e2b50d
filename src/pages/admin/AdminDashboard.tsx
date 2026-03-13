@@ -3,7 +3,8 @@ import { api } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 import PageLayout from "@/components/PageLayout";
 import { Button } from "@/components/ui/button";
-import { Loader2, ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -11,12 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ALL_CURRENCIES, type Currency, type User } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, vibrateSuccess } from "@/lib/utils";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStaggerIn, useFadeIn } from "@/hooks/useGsap";
+import { useToast } from "@/hooks/use-toast";
 import gsap from "gsap";
 
 const CURRENCY_LABELS: Record<Currency, string> = {
@@ -37,11 +40,20 @@ const CURRENCY_SYMBOLS: Record<Currency, string> = {
 
 const AdminDashboard = () => {
   const { user: currentUser } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [currentIndex, setCurrentIndex] = useState(0);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const greetingRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
+
+  // Balance adjustment state
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustType, setAdjustType] = useState<"balance" | "preBalance">("balance");
+  const [adjustCurrency, setAdjustCurrency] = useState<Currency>("KZT");
+  const [adjustAmount, setAdjustAmount] = useState("");
+  const [adjustSaving, setAdjustSaving] = useState(false);
 
   const { data: allUsers = [], isLoading } = useQuery({
     queryKey: ["allUsers"],
@@ -129,6 +141,36 @@ const AdminDashboard = () => {
 
   const activeCurrencies = selectedDriver ? getActiveCurrencies(selectedDriver) : [];
 
+  const parseNum = (v: string) => Number(v.replace(",", "."));
+
+  const openAdjust = (type: "balance" | "preBalance", currency: Currency) => {
+    setAdjustType(type);
+    setAdjustCurrency(currency);
+    const current = type === "balance"
+      ? (selectedDriver?.balances?.[currency] ?? 0)
+      : (selectedDriver?.preBalances?.[currency] ?? 0);
+    setAdjustAmount(String(current));
+    setAdjustOpen(true);
+  };
+
+  const handleAdjustSave = async () => {
+    if (!selectedDriver) return;
+    setAdjustSaving(true);
+    const newAmount = parseNum(adjustAmount);
+    const result = adjustType === "balance"
+      ? await api.updateBalance(selectedDriver.id, adjustCurrency, newAmount)
+      : await api.updatePreBalance(selectedDriver.id, adjustCurrency, newAmount);
+    if (result.success) {
+      toast({ title: "Баланс обновлён" });
+      vibrateSuccess();
+      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
+    } else {
+      toast({ title: result.error || "Ошибка", variant: "destructive" });
+    }
+    setAdjustSaving(false);
+    setAdjustOpen(false);
+  };
+
   return (
     <PageLayout title="Мой баланс">
       <div
@@ -183,7 +225,12 @@ const AdminDashboard = () => {
               const isNegative = balance < 0;
               return (
                 <div key={c} className={cn("card-elevated rounded-2xl px-5 py-5", isNegative && "border-destructive/30")}>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{CURRENCY_LABELS[c]}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{CURRENCY_LABELS[c]}</p>
+                    <button onClick={() => openAdjust("balance", c)} className="h-6 w-6 inline-flex items-center justify-center rounded text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                  </div>
                   <div className="mt-2 flex items-baseline gap-2">
                     <p className={cn(
                       "text-3xl font-bold font-display",
@@ -212,7 +259,12 @@ const AdminDashboard = () => {
                 const preBalance = selectedDriver?.preBalances?.[c] ?? 0;
                 return (
                   <div key={`pre-${c}`} className="card-elevated rounded-2xl px-5 py-5 border-dashed border-primary/20">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{CURRENCY_LABELS[c]} (пред.)</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{CURRENCY_LABELS[c]} (пред.)</p>
+                      <button onClick={() => openAdjust("preBalance", c)} className="h-6 w-6 inline-flex items-center justify-center rounded text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    </div>
                     <div className="mt-2 flex items-baseline gap-2">
                       <p className={cn(
                         "text-3xl font-bold font-display",
@@ -244,6 +296,37 @@ const AdminDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Balance adjustment dialog */}
+      <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">
+              Корректировка {adjustType === "balance" ? "баланса" : "предбаланса"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {selectedDriver?.name} · {adjustCurrency}
+            </p>
+            <Input
+              placeholder="Новая сумма"
+              type="text"
+              inputMode="decimal"
+              value={adjustAmount}
+              onChange={(e) => setAdjustAmount(e.target.value.replace(",", "."))}
+              className="bg-secondary border-border"
+            />
+            <p className="text-xs text-muted-foreground">
+              Укажите итоговое значение баланса. Изменение применится сразу.
+            </p>
+            <Button className="w-full" onClick={handleAdjustSave} disabled={adjustSaving}>
+              {adjustSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Сохранить
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </PageLayout>
   );
 };
