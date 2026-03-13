@@ -29,6 +29,8 @@ function doPost(e) {
       deleteExpense: deleteExpense,
       saveMileage: saveMileage,
       getMileage: getMileage,
+      updateMileage: updateMileage,
+      deleteMileage: deleteMileage,
       getDrivers: getDrivers,
       createDriver: createDriver,
       deleteDriver: deleteDriver,
