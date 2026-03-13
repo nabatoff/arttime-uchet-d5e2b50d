@@ -141,6 +141,36 @@ const AdminDashboard = () => {
 
   const activeCurrencies = selectedDriver ? getActiveCurrencies(selectedDriver) : [];
 
+  const parseNum = (v: string) => Number(v.replace(",", "."));
+
+  const openAdjust = (type: "balance" | "preBalance", currency: Currency) => {
+    setAdjustType(type);
+    setAdjustCurrency(currency);
+    const current = type === "balance"
+      ? (selectedDriver?.balances?.[currency] ?? 0)
+      : (selectedDriver?.preBalances?.[currency] ?? 0);
+    setAdjustAmount(String(current));
+    setAdjustOpen(true);
+  };
+
+  const handleAdjustSave = async () => {
+    if (!selectedDriver) return;
+    setAdjustSaving(true);
+    const newAmount = parseNum(adjustAmount);
+    const result = adjustType === "balance"
+      ? await api.updateBalance(selectedDriver.id, adjustCurrency, newAmount)
+      : await api.updatePreBalance(selectedDriver.id, adjustCurrency, newAmount);
+    if (result.success) {
+      toast({ title: "Баланс обновлён" });
+      vibrateSuccess();
+      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
+    } else {
+      toast({ title: result.error || "Ошибка", variant: "destructive" });
+    }
+    setAdjustSaving(false);
+    setAdjustOpen(false);
+  };
+
   return (
     <PageLayout title="Мой баланс">
       <div
