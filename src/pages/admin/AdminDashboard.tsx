@@ -3,7 +3,8 @@ import { api } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 import PageLayout from "@/components/PageLayout";
 import { Button } from "@/components/ui/button";
-import { Loader2, ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -11,12 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ALL_CURRENCIES, type Currency, type User } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, vibrateSuccess } from "@/lib/utils";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStaggerIn, useFadeIn } from "@/hooks/useGsap";
+import { useToast } from "@/hooks/use-toast";
 import gsap from "gsap";
 
 const CURRENCY_LABELS: Record<Currency, string> = {
