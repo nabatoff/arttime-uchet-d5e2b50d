@@ -260,9 +260,10 @@ const BalanceTransfers = () => {
 
               <Input
                 placeholder="Сумма"
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => setAmount(e.target.value.replace(",", "."))}
                 className="bg-secondary border-border"
               />
 
