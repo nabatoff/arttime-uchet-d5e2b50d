@@ -225,7 +225,12 @@ const AdminDashboard = () => {
               const isNegative = balance < 0;
               return (
                 <div key={c} className={cn("card-elevated rounded-2xl px-5 py-5", isNegative && "border-destructive/30")}>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{CURRENCY_LABELS[c]}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{CURRENCY_LABELS[c]}</p>
+                    <button onClick={() => openAdjust("balance", c)} className="h-6 w-6 inline-flex items-center justify-center rounded text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                  </div>
                   <div className="mt-2 flex items-baseline gap-2">
                     <p className={cn(
                       "text-3xl font-bold font-display",
