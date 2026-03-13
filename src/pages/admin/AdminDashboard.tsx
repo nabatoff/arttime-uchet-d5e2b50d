@@ -296,6 +296,37 @@ const AdminDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Balance adjustment dialog */}
+      <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">
+              Корректировка {adjustType === "balance" ? "баланса" : "предбаланса"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {selectedDriver?.name} · {adjustCurrency}
+            </p>
+            <Input
+              placeholder="Новая сумма"
+              type="text"
+              inputMode="decimal"
+              value={adjustAmount}
+              onChange={(e) => setAdjustAmount(e.target.value.replace(",", "."))}
+              className="bg-secondary border-border"
+            />
+            <p className="text-xs text-muted-foreground">
+              Укажите итоговое значение баланса. Изменение применится сразу.
+            </p>
+            <Button className="w-full" onClick={handleAdjustSave} disabled={adjustSaving}>
+              {adjustSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Сохранить
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </PageLayout>
   );
 };
