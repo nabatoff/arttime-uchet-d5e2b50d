@@ -16,5 +16,6 @@ export async function uploadToImgBB(file: File): Promise<string> {
     throw new Error(data.error?.message || "Ошибка загрузки изображения");
   }
 
-  return data.data.url;
+  // Прямая ссылка на изображение для <img src> (display_url или url; не url_viewer — это страница)
+  return data.data.display_url || data.data.url || data.data.url_viewer;
 }

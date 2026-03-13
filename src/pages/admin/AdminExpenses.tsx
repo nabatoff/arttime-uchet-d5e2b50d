@@ -46,7 +46,13 @@ const AdminExpenses = () => {
   const [addTruck, setAddTruck] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [zoomImageLoadError, setZoomImageLoadError] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+
+  useEffect(() => {
+    if (zoomImage) setZoomImageLoadError(false);
+  }, [zoomImage]);
+
   // Transfer edit/delete
   const [editTransfer, setEditTransfer] = useState<TransferRecord | null>(null);
   const [editTransferOpen, setEditTransferOpen] = useState(false);
@@ -931,20 +937,34 @@ const AdminExpenses = () => {
       {zoomImage && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
-          onClick={() => setZoomImage(null)}
+          onClick={() => { setZoomImage(null); setZoomImageLoadError(false); }}
         >
-          <div className="relative flex min-h-0 min-w-0 max-h-[85vh] max-w-[90vw] shrink-0 items-center justify-center">
-            <img
-              src={zoomImage}
-              alt="Чек"
-              referrerPolicy="no-referrer"
-              onClick={(e) => e.stopPropagation()}
-              className="max-h-[85vh] max-w-full rounded-lg border border-border bg-card object-contain shadow-lg"
-              style={{ minHeight: 0 }}
-            />
+          <div className="relative flex min-h-[200px] min-w-0 max-h-[85vh] max-w-[90vw] shrink-0 items-center justify-center">
+            {zoomImageLoadError ? (
+              <div className="flex flex-col items-center gap-3 rounded-lg bg-card p-6 text-center" onClick={(e) => e.stopPropagation()}>
+                <p className="text-sm text-muted-foreground">Не удалось загрузить изображение</p>
+                <a
+                  href={zoomImage}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-primary underline"
+                >
+                  Открыть в новой вкладке
+                </a>
+              </div>
+            ) : (
+              <img
+                key={zoomImage}
+                src={zoomImage}
+                alt="Чек"
+                onClick={(e) => e.stopPropagation()}
+                onError={() => setZoomImageLoadError(true)}
+                className="max-h-[85vh] max-w-full rounded-lg border border-border bg-card object-contain shadow-lg"
+              />
+            )}
           </div>
           <button
-            onClick={(e) => { e.stopPropagation(); setZoomImage(null); }}
+            onClick={(e) => { e.stopPropagation(); setZoomImage(null); setZoomImageLoadError(false); }}
             className="absolute right-4 top-4 z-10 rounded-full bg-background/80 p-2 text-foreground hover:bg-background"
           >
             <X className="h-5 w-5" />
