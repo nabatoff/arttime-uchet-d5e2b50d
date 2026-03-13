@@ -930,16 +930,17 @@ const AdminExpenses = () => {
       {/* Image zoom overlay */}
       {zoomImage && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm"
           onClick={() => setZoomImage(null)}
         >
           <img
             src={zoomImage}
             alt="Чек"
+            onClick={(e) => e.stopPropagation()}
             className="max-h-[85vh] max-w-[90vw] rounded-lg border border-border object-contain shadow-lg"
           />
           <button
-            onClick={() => setZoomImage(null)}
+            onClick={(e) => { e.stopPropagation(); setZoomImage(null); }}
             className="absolute right-4 top-4 rounded-full bg-background/80 p-2 text-foreground hover:bg-background"
           >
             <X className="h-5 w-5" />

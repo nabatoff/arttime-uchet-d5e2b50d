@@ -1169,6 +1169,50 @@ function saveMileage(body) {
   };
 }
 
+function updateMileage(body) {
+  var mileageId = String(body.id || "");
+  if (!mileageId) return { success: false, error: "Не указан ID" };
+
+  var sheet = getSheet("Mileage");
+  if (!sheet) return { success: false, error: "Лист Mileage не найден" };
+
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === mileageId) {
+      if (body.km !== undefined) {
+        var kmCol = headers.indexOf("km_value");
+        if (kmCol === -1) kmCol = headers.indexOf("km");
+        if (kmCol !== -1) sheet.getRange(i + 1, kmCol + 1).setValue(Number(body.km));
+      }
+      if (body.truck !== undefined) {
+        var truckCol = headers.indexOf("truck");
+        if (truckCol !== -1) sheet.getRange(i + 1, truckCol + 1).setValue(String(body.truck || ""));
+      }
+      return { success: true };
+    }
+  }
+  return { success: false, error: "Запись не найдена" };
+}
+
+function deleteMileage(body) {
+  var mileageId = String(body.mileageId || "");
+  if (!mileageId) return { success: false, error: "Не указан ID" };
+
+  var sheet = getSheet("Mileage");
+  if (!sheet) return { success: false, error: "Лист Mileage не найден" };
+
+  var rows = sheet.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === mileageId) {
+      sheet.deleteRow(i + 1);
+      return { success: true };
+    }
+  }
+  return { success: false, error: "Запись не найдена" };
+}
+
 // ==================== DRIVERS ====================
 
 function getDrivers() {
