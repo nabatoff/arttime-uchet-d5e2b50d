@@ -40,11 +40,20 @@ const CURRENCY_SYMBOLS: Record<Currency, string> = {
 
 const AdminDashboard = () => {
   const { user: currentUser } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [currentIndex, setCurrentIndex] = useState(0);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const greetingRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
+
+  // Balance adjustment state
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustType, setAdjustType] = useState<"balance" | "preBalance">("balance");
+  const [adjustCurrency, setAdjustCurrency] = useState<Currency>("KZT");
+  const [adjustAmount, setAdjustAmount] = useState("");
+  const [adjustSaving, setAdjustSaving] = useState(false);
 
   const { data: allUsers = [], isLoading } = useQuery({
     queryKey: ["allUsers"],
