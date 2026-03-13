@@ -930,18 +930,22 @@ const AdminExpenses = () => {
       {/* Image zoom overlay */}
       {zoomImage && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
           onClick={() => setZoomImage(null)}
         >
-          <img
-            src={zoomImage}
-            alt="Чек"
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[85vh] max-w-[90vw] rounded-lg border border-border object-contain shadow-lg"
-          />
+          <div className="relative flex min-h-0 min-w-0 max-h-[85vh] max-w-[90vw] shrink-0 items-center justify-center">
+            <img
+              src={zoomImage}
+              alt="Чек"
+              referrerPolicy="no-referrer"
+              onClick={(e) => e.stopPropagation()}
+              className="max-h-[85vh] max-w-full rounded-lg border border-border bg-card object-contain shadow-lg"
+              style={{ minHeight: 0 }}
+            />
+          </div>
           <button
             onClick={(e) => { e.stopPropagation(); setZoomImage(null); }}
-            className="absolute right-4 top-4 rounded-full bg-background/80 p-2 text-foreground hover:bg-background"
+            className="absolute right-4 top-4 z-10 rounded-full bg-background/80 p-2 text-foreground hover:bg-background"
           >
             <X className="h-5 w-5" />
           </button>

@@ -31,7 +31,9 @@ const BalanceDashboard = () => {
   const { user: currentUser } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
   const touchEndX = useRef(0);
+  const touchEndY = useRef(0);
   const greetingRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
 
@@ -106,11 +108,16 @@ const BalanceDashboard = () => {
   };
 
   const handleSwipe = () => {
-    const diff = touchStartX.current - touchEndX.current;
-    if (Math.abs(diff) < 50) return;
-    if (diff > 0 && currentIndex < drivers.length - 1) {
+    const diffX = touchStartX.current - touchEndX.current;
+    const diffY = touchStartY.current - touchEndY.current;
+    const absX = Math.abs(diffX);
+    const absY = Math.abs(diffY);
+    if (absX < 50) return;
+    if (absY > absX) return;
+    if (typeof window !== "undefined" && window.scrollY > 80) return;
+    if (diffX > 0 && currentIndex < drivers.length - 1) {
       switchDriver(currentIndex + 1);
-    } else if (diff < 0 && currentIndex > 0) {
+    } else if (diffX < 0 && currentIndex > 0) {
       switchDriver(currentIndex - 1);
     }
   };
@@ -141,8 +148,15 @@ const BalanceDashboard = () => {
   return (
     <PageLayout title="Балансы">
       <div
-        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
-        onTouchEnd={(e) => { touchEndX.current = e.changedTouches[0].clientX; handleSwipe(); }}
+        onTouchStart={(e) => {
+          touchStartX.current = e.touches[0].clientX;
+          touchStartY.current = e.touches[0].clientY;
+        }}
+        onTouchEnd={(e) => {
+          touchEndX.current = e.changedTouches[0].clientX;
+          touchEndY.current = e.changedTouches[0].clientY;
+          handleSwipe();
+        }}
       >
         <div ref={greetingRef} className="mb-6">
           <p className="text-xs text-muted-foreground capitalize">{dateStr}</p>
