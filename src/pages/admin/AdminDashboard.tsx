@@ -259,7 +259,12 @@ const AdminDashboard = () => {
                 const preBalance = selectedDriver?.preBalances?.[c] ?? 0;
                 return (
                   <div key={`pre-${c}`} className="card-elevated rounded-2xl px-5 py-5 border-dashed border-primary/20">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{CURRENCY_LABELS[c]} (пред.)</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{CURRENCY_LABELS[c]} (пред.)</p>
+                      <button onClick={() => openAdjust("preBalance", c)} className="h-6 w-6 inline-flex items-center justify-center rounded text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    </div>
                     <div className="mt-2 flex items-baseline gap-2">
                       <p className={cn(
                         "text-3xl font-bold font-display",
