@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { startOfDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { vibrateSuccess } from "@/lib/utils";
 import { addToQueue, type PendingMileage } from "@/services/offlineQueue";
@@ -28,23 +27,21 @@ const Mileage = () => {
   const [saving, setSaving] = useState(false);
   const [showMileageHint, setShowMileageHint] = useState(() => !localStorage.getItem("mileage-tooltip-seen"));
 
-  const todayIso = startOfDay(new Date()).toISOString();
-
+  // Load ALL trucks (no date filtering)
   const { data: trucks = [] } = useQuery({
-    queryKey: ["trucks", "available", todayIso],
+    queryKey: ["trucks"],
     queryFn: async () => {
-      const result = await api.getTrucks({ excludeBusyForDate: todayIso });
+      const result = await api.getTrucks();
       return result.success && result.data ? result.data : [];
     },
   });
 
   const handleSave = async () => {
-    if (!user || !km || !photoUrl) return;
+    if (!user || !km || !photoUrl || saving) return;
     setSaving(true);
 
     try {
       if (!navigator.onLine || photoUrl === "__offline__") {
-        // Save to offline queue
         const pending: PendingMileage = {
           type: "mileage",
           id: `mil_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -65,7 +62,6 @@ const Mileage = () => {
         markSubmitted();
         navigate("/dashboard", { replace: true });
       } else {
-        // Race: API call vs optimistic timeout (8s)
         const apiCall = api.addMileage({
           driverId: user.id,
           driverName: user.name,
@@ -83,12 +79,10 @@ const Mileage = () => {
         const raceResult = await Promise.race([apiCall, optimisticTimeout]);
 
         if ("optimistic" in raceResult) {
-          // Server is slow but data likely saved — proceed
           toast({ title: "Пробег отправлен", description: "Сервер подтвердит позже" });
         } else if (raceResult.success) {
           toast({ title: "Пробег отправлен" });
         } else {
-          // API returned error — don't navigate
           toast({ title: "Ошибка", description: raceResult.error, variant: "destructive" });
           setSaving(false);
           return;
@@ -99,7 +93,6 @@ const Mileage = () => {
         navigate("/dashboard", { replace: true });
       }
     } catch {
-      // Network error — save offline
       if (photoFile) {
         const pending: PendingMileage = {
           type: "mileage",
