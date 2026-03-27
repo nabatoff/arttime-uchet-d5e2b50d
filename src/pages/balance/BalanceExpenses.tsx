@@ -8,7 +8,7 @@ import { Loader2, Filter, X, CalendarIcon, Plus, ChevronDown } from "lucide-reac
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User } from "@/types";
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { ru } from "date-fns/locale";
-import { buildAdminExpenseListFilters } from "@/lib/expenseQueryFilters";
+import { buildAdminExpenseListFilters, type FilterExpenseKind } from "@/lib/expenseQueryFilters";
 import { cn, filterCategoriesByRole } from "@/lib/utils";
 import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
 import PhotoUpload from "@/components/PhotoUpload";
@@ -46,6 +46,7 @@ const BalanceExpenses = () => {
 
   const [filterDriver, setFilterDriver] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterExpenseKind, setFilterExpenseKind] = useState<FilterExpenseKind>("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(() => defaultDateFrom);
   const [dateTo, setDateTo] = useState<Date | undefined>(() => defaultDateTo);
 
@@ -59,14 +60,14 @@ const BalanceExpenses = () => {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["balanceExpenses", since ?? "", until ?? "", filterDriver, filterCategory],
+    queryKey: ["balanceExpenses", since ?? "", until ?? "", filterDriver, filterCategory, filterExpenseKind],
     queryFn: async ({ pageParam = 0 }) => {
       const result = await api.getExpenses("", "Admin", {
         since,
         until,
         limit: 50,
         offset: pageParam as number,
-        ...buildAdminExpenseListFilters(filterDriver, filterCategory),
+        ...buildAdminExpenseListFilters(filterDriver, filterCategory, filterExpenseKind),
       });
       return result.success && result.data ? result.data : ([] as Expense[]);
     },
@@ -132,11 +133,17 @@ const BalanceExpenses = () => {
   const clearFilters = () => {
     setFilterDriver("all");
     setFilterCategory("all");
+    setFilterExpenseKind("all");
     setDateFrom(undefined);
     setDateTo(undefined);
   };
 
-  const hasActiveFilters = filterDriver !== "all" || filterCategory !== "all" || dateFrom || dateTo;
+  const hasActiveFilters =
+    filterDriver !== "all" ||
+    filterCategory !== "all" ||
+    filterExpenseKind !== "all" ||
+    dateFrom ||
+    dateTo;
 
   const activeCurrenciesForUser: Currency[] = useMemo(() => {
     const raw =
@@ -316,6 +323,28 @@ const BalanceExpenses = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-medium text-muted-foreground">Тип операций</p>
+            <Select
+              value={filterExpenseKind}
+              onValueChange={(v) => setFilterExpenseKind(v as FilterExpenseKind)}
+              disabled={filterCategory !== "all"}
+            >
+              <SelectTrigger className="h-10 bg-secondary">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все</SelectItem>
+                <SelectItem value="expenses">Только расходы</SelectItem>
+                <SelectItem value="topups">Только пополнения</SelectItem>
+              </SelectContent>
+            </Select>
+            {filterCategory !== "all" && (
+              <p className="mt-1 text-[10px] text-muted-foreground leading-snug">
+                Выбрана категория — тип учитывается только при «Все категории»
+              </p>
+            )}
           </div>
           <div>
             <p className="mb-1 text-xs font-medium text-muted-foreground">Период</p>

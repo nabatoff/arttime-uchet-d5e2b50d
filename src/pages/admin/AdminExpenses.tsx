@@ -10,7 +10,7 @@ import { Loader2, Filter, X, Plus, CalendarIcon, Pencil, Trash2, Download, Arrow
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User, type TransferRecord } from "@/types";
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { ru } from "date-fns/locale";
-import { buildAdminExpenseListFilters } from "@/lib/expenseQueryFilters";
+import { buildAdminExpenseListFilters, type FilterExpenseKind } from "@/lib/expenseQueryFilters";
 import { cn, vibrateSuccess } from "@/lib/utils";
 import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -67,24 +67,55 @@ const AdminExpenses = () => {
 
   const ADMIN_EXPENSES_FILTERS_KEY = "admin-expenses-filters";
 
-  const loadSavedFilters = (): { filterDriver: string; filterCategory: string; dateFrom: Date | undefined; dateTo: Date | undefined } => {
+  const loadSavedFilters = (): {
+    filterDriver: string;
+    filterCategory: string;
+    filterExpenseKind: FilterExpenseKind;
+    dateFrom: Date | undefined;
+    dateTo: Date | undefined;
+  } => {
     try {
       const raw = localStorage.getItem(ADMIN_EXPENSES_FILTERS_KEY);
-      if (!raw) return { filterDriver: "all", filterCategory: "all", dateFrom: defaultDateFrom, dateTo: defaultDateTo };
-      const parsed = JSON.parse(raw) as { filterDriver?: string; filterCategory?: string; dateFrom?: string; dateTo?: string };
+      if (!raw) {
+        return {
+          filterDriver: "all",
+          filterCategory: "all",
+          filterExpenseKind: "all",
+          dateFrom: defaultDateFrom,
+          dateTo: defaultDateTo,
+        };
+      }
+      const parsed = JSON.parse(raw) as {
+        filterDriver?: string;
+        filterCategory?: string;
+        filterExpenseKind?: string;
+        dateFrom?: string;
+        dateTo?: string;
+      };
+      const kind = parsed.filterExpenseKind;
+      const filterExpenseKind: FilterExpenseKind =
+        kind === "expenses" || kind === "topups" || kind === "all" ? kind : "all";
       return {
         filterDriver: parsed.filterDriver ?? "all",
         filterCategory: parsed.filterCategory ?? "all",
+        filterExpenseKind,
         dateFrom: parsed.dateFrom ? new Date(parsed.dateFrom) : defaultDateFrom,
         dateTo: parsed.dateTo ? new Date(parsed.dateTo) : defaultDateTo,
       };
     } catch {
-      return { filterDriver: "all", filterCategory: "all", dateFrom: defaultDateFrom, dateTo: defaultDateTo };
+      return {
+        filterDriver: "all",
+        filterCategory: "all",
+        filterExpenseKind: "all",
+        dateFrom: defaultDateFrom,
+        dateTo: defaultDateTo,
+      };
     }
   };
 
   const [filterDriver, setFilterDriver] = useState<string>(() => loadSavedFilters().filterDriver);
   const [filterCategory, setFilterCategory] = useState<string>(() => loadSavedFilters().filterCategory);
+  const [filterExpenseKind, setFilterExpenseKind] = useState<FilterExpenseKind>(() => loadSavedFilters().filterExpenseKind);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(() => loadSavedFilters().dateFrom);
   const [dateTo, setDateTo] = useState<Date | undefined>(() => loadSavedFilters().dateTo);
 
@@ -94,11 +125,12 @@ const AdminExpenses = () => {
       JSON.stringify({
         filterDriver,
         filterCategory,
+        filterExpenseKind,
         dateFrom: dateFrom?.toISOString(),
         dateTo: dateTo?.toISOString(),
       })
     );
-  }, [filterDriver, filterCategory, dateFrom, dateTo]);
+  }, [filterDriver, filterCategory, filterExpenseKind, dateFrom, dateTo]);
 
   const since = dateFrom ? startOfDay(dateFrom).toISOString() : undefined;
   const until = dateTo ? endOfDay(dateTo).toISOString() : undefined;
@@ -110,14 +142,14 @@ const AdminExpenses = () => {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["adminExpenses", since ?? "", until ?? "", filterDriver, filterCategory],
+    queryKey: ["adminExpenses", since ?? "", until ?? "", filterDriver, filterCategory, filterExpenseKind],
     queryFn: async ({ pageParam = 0 }) => {
       const result = await api.getExpenses("", "Admin", {
         since,
         until,
         limit: 50,
         offset: pageParam as number,
-        ...buildAdminExpenseListFilters(filterDriver, filterCategory),
+        ...buildAdminExpenseListFilters(filterDriver, filterCategory, filterExpenseKind),
       });
       return result.success && result.data ? result.data : ([] as Expense[]);
     },
@@ -222,11 +254,17 @@ const AdminExpenses = () => {
   const clearFilters = () => {
     setFilterDriver("all");
     setFilterCategory("all");
+    setFilterExpenseKind("all");
     setDateFrom(undefined);
     setDateTo(undefined);
   };
 
-  const hasActiveFilters = filterDriver !== "all" || filterCategory !== "all" || dateFrom || dateTo;
+  const hasActiveFilters =
+    filterDriver !== "all" ||
+    filterCategory !== "all" ||
+    filterExpenseKind !== "all" ||
+    dateFrom ||
+    dateTo;
 
   const reloadData = () => {
     queryClient.invalidateQueries({ queryKey: ["adminExpenses"] });
@@ -598,6 +636,29 @@ const AdminExpenses = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div>
+            <p className="mb-1 text-xs font-medium text-muted-foreground">Тип операций</p>
+            <Select
+              value={filterExpenseKind}
+              onValueChange={(v) => setFilterExpenseKind(v as FilterExpenseKind)}
+              disabled={filterCategory !== "all"}
+            >
+              <SelectTrigger className="h-10 bg-secondary">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все</SelectItem>
+                <SelectItem value="expenses">Только расходы</SelectItem>
+                <SelectItem value="topups">Только пополнения</SelectItem>
+              </SelectContent>
+            </Select>
+            {filterCategory !== "all" && (
+              <p className="mt-1 text-[10px] text-muted-foreground leading-snug">
+                Выбрана категория — тип учитывается только при «Все категории»
+              </p>
+            )}
           </div>
 
           {/* Quick period */}

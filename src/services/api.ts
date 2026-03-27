@@ -408,6 +408,8 @@ export const api = {
       filterUserId?: string;
       /** Админ: сузить по категории */
       filterCategory?: string;
+      /** Админ: если категория «все» — исключить пополнения или только пополнения */
+      expenseKind?: "exclude_topup" | "only_topup";
     },
   ): Promise<ApiResponse<Expense[]>> => {
     let query = supabase.from("expenses").select("*, users!expenses_user_id_fkey(name)").order("date", { ascending: false });
@@ -417,7 +419,12 @@ export const api = {
       query = query.eq("user_id", driverId).neq("category", "Пополнение");
     } else {
       if (params?.filterUserId) query = query.eq("user_id", params.filterUserId);
-      if (params?.filterCategory) query = query.eq("category", params.filterCategory);
+      if (params?.filterCategory) {
+        query = query.eq("category", params.filterCategory);
+      } else {
+        if (params?.expenseKind === "exclude_topup") query = query.neq("category", "Пополнение");
+        if (params?.expenseKind === "only_topup") query = query.eq("category", "Пополнение");
+      }
     }
     if (params?.since) query = query.gte("date", params.since);
     if (params?.until) query = query.lte("date", params.until);
