@@ -6,6 +6,78 @@ type CurrencyCol = (typeof CURRENCY_COLS)[number];
 const colToCurrency = (col: CurrencyCol): Currency => col.toUpperCase() as Currency;
 const currencyToCol = (c: Currency): CurrencyCol => c.toLowerCase() as CurrencyCol;
 
+/** Календарный день Asia/Almaty (UTC+5, без DST) — как в GAS для excludeBusyForDate */
+function almatyDayStartEndUtc(isoDate: string): { start: string; end: string } {
+  const d = isoDate.slice(0, 10);
+  const start = new Date(`${d}T00:00:00+05:00`);
+  const end = new Date(`${d}T23:59:59.999+05:00`);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+function isConversionTransferRow(fromId: string | null, toId: string | null, currency: string): boolean {
+  return !!(fromId && toId && fromId === toId && String(currency).includes("→"));
+}
+
+function computeConvertedAmount(fromCurrency: Currency, toCurrency: Currency, amount: number, rate: number): number {
+  if (fromCurrency === "RUB" && toCurrency === "KZT") {
+    return Math.round(amount * rate * 100) / 100;
+  }
+  if (fromCurrency === "KZT" && toCurrency === "RUB") {
+    return Math.round((amount / rate) * 100) / 100;
+  }
+  return Math.round((amount / rate) * 100) / 100;
+}
+
+function parseRateFromComment(comment: string): number | null {
+  const m = String(comment).match(/курс\s*([\d.,]+)/);
+  return m ? Number(String(m[1]).replace(",", ".")) : null;
+}
+
+function parseConvertedFromComment(comment: string): number | null {
+  const m = String(comment).match(/→\s*([\d.,]+)/);
+  return m ? Number(String(m[1]).replace(",", ".")) : null;
+}
+
+/** Откат эффектов строки перевода на балансах (как deleteTransfer в GAS) */
+async function reverseTransferRowEffects(old: {
+  from_driver_id: string | null;
+  to_driver_id: string | null;
+  currency: string;
+  amount: number;
+  comment: string | null;
+}): Promise<void> {
+  const currency = old.currency;
+  const amount = Number(old.amount);
+  const fromId = old.from_driver_id;
+  const toId = old.to_driver_id;
+  if (!fromId || !toId) return;
+
+  if (isConversionTransferRow(fromId, toId, currency)) {
+    const parts = currency.split("→").map((s) => s.trim());
+    const fromCur = parts[0] as Currency;
+    const toCur = parts[1] as Currency;
+    const col1 = currencyToCol(fromCur);
+    const col2 = currencyToCol(toCur);
+    const { data: preBal } = await supabase.from("pre_balances").select("*").eq("user_id", fromId).maybeSingle();
+    const curFrom = preBal ? Number(preBal[col1]) || 0 : 0;
+    const curTo = preBal ? Number(preBal[col2]) || 0 : 0;
+    const convertedAmount = parseConvertedFromComment(old.comment || "");
+    await supabase.from("pre_balances").upsert({ user_id: fromId, [col1]: curFrom + amount }, { onConflict: "user_id" });
+    if (convertedAmount !== null && convertedAmount > 0) {
+      await supabase.from("pre_balances").upsert({ user_id: fromId, [col2]: curTo - convertedAmount }, { onConflict: "user_id" });
+    }
+  } else {
+    const col = currencyToCol(currency as Currency);
+    const { data: preBal } = await supabase.from("pre_balances").select("*").eq("user_id", fromId).maybeSingle();
+    const preVal = preBal ? Number(preBal[col]) || 0 : 0;
+    await supabase.from("pre_balances").upsert({ user_id: fromId, [col]: preVal + amount }, { onConflict: "user_id" });
+
+    const { data: balRow } = await supabase.from("balances").select("*").eq("user_id", toId).maybeSingle();
+    const balVal = balRow ? Number(balRow[col]) || 0 : 0;
+    await supabase.from("balances").upsert({ user_id: toId, [col]: balVal - amount }, { onConflict: "user_id" });
+  }
+}
+
 function balanceRowToRecord(row: Record<string, unknown>): Record<Currency, number> {
   const result = {} as Record<Currency, number>;
   for (const col of CURRENCY_COLS) {
@@ -87,7 +159,12 @@ export const api = {
       no_receipt: noReceipt,
       visible_to: visibleTo || "both",
     });
-    if (error) return fail(error.message);
+    if (error) {
+      if (error.code === "23505" || /duplicate|unique/i.test(error.message)) {
+        return fail("Категория уже существует");
+      }
+      return fail(error.message);
+    }
     return ok(null);
   },
 
@@ -191,7 +268,7 @@ export const api = {
       id: r.id,
       fromDriverId: r.from_driver_id || "",
       toDriverId: r.to_driver_id || "",
-      currency: r.currency as Currency,
+      currency: String(r.currency ?? ""),
       amount: Number(r.amount),
       date: r.date,
       performedBy: r.performed_by || "",
@@ -199,24 +276,56 @@ export const api = {
     })));
   },
 
-  updateTransfer: async (transfer: { id: string; fromDriverId: string; toDriverId: string; currency: Currency; amount: number; comment?: string }) => {
-    // Get old transfer to reverse
+  updateTransfer: async (transfer: { id: string; fromDriverId: string; toDriverId: string; currency: string; amount: number; comment?: string }) => {
     const { data: old } = await supabase.from("transfers").select("*").eq("id", transfer.id).maybeSingle();
     if (!old) return fail("Перевод не найден");
 
-    const oldCol = currencyToCol(old.currency as Currency);
-    const newCol = currencyToCol(transfer.currency);
+    await reverseTransferRowEffects(old);
 
-    // Reverse old: restore pre-balance, subtract from balance
-    const { data: oldPreFrom } = await supabase.from("pre_balances").select("*").eq("user_id", old.from_driver_id).maybeSingle();
-    const oldPreVal = oldPreFrom ? Number(oldPreFrom[oldCol]) || 0 : 0;
-    await supabase.from("pre_balances").upsert({ user_id: old.from_driver_id, [oldCol]: oldPreVal + Number(old.amount) }, { onConflict: "user_id" });
+    if (isConversionTransferRow(transfer.fromDriverId, transfer.toDriverId, transfer.currency)) {
+      const parts = transfer.currency.split("→").map((s) => s.trim());
+      const fromCur = parts[0] as Currency;
+      const toCur = parts[1] as Currency;
+      if (!fromCur || !toCur) return fail("Неверный формат валюты конвертации");
+      const rate = parseRateFromComment(transfer.comment || "");
+      if (!(transfer.amount > 0) || !rate) {
+        return fail("Для конвертации укажите сумму > 0 и курс в комментарии (курс X)");
+      }
+      const convertedAmount = computeConvertedAmount(fromCur, toCur, transfer.amount, rate);
+      const { data: preBal } = await supabase.from("pre_balances").select("*").eq("user_id", transfer.fromDriverId).maybeSingle();
+      const fromCol = currencyToCol(fromCur);
+      const toCol = currencyToCol(toCur);
+      const currentFrom = preBal ? Number(preBal[fromCol]) || 0 : 0;
+      const currentTo = preBal ? Number(preBal[toCol]) || 0 : 0;
+      await supabase.from("pre_balances").upsert(
+        {
+          user_id: transfer.fromDriverId,
+          [fromCol]: currentFrom - transfer.amount,
+          [toCol]: currentTo + convertedAmount,
+        },
+        { onConflict: "user_id" }
+      );
 
-    const { data: oldBalTo } = await supabase.from("balances").select("*").eq("user_id", old.to_driver_id).maybeSingle();
-    const oldBalVal = oldBalTo ? Number(oldBalTo[oldCol]) || 0 : 0;
-    await supabase.from("balances").upsert({ user_id: old.to_driver_id, [oldCol]: oldBalVal - Number(old.amount) }, { onConflict: "user_id" });
+      let commentFinal = String(transfer.comment ?? "").trim();
+      if (!commentFinal) {
+        commentFinal = `Конвертация: ${transfer.amount} ${fromCur} → ${convertedAmount} ${toCur} (курс ${rate})`;
+      }
+      await supabase
+        .from("transfers")
+        .update({
+          from_driver_id: transfer.fromDriverId,
+          to_driver_id: transfer.toDriverId,
+          currency: transfer.currency,
+          amount: transfer.amount,
+          comment: commentFinal,
+        })
+        .eq("id", transfer.id);
 
-    // Apply new
+      return ok(null);
+    }
+
+    const newCol = currencyToCol(transfer.currency as Currency);
+
     const { data: newPreFrom } = await supabase.from("pre_balances").select("*").eq("user_id", transfer.fromDriverId).maybeSingle();
     const newPreVal = newPreFrom ? Number(newPreFrom[newCol]) || 0 : 0;
     await supabase.from("pre_balances").upsert({ user_id: transfer.fromDriverId, [newCol]: newPreVal - transfer.amount }, { onConflict: "user_id" });
@@ -225,14 +334,16 @@ export const api = {
     const newBalVal = newBalTo ? Number(newBalTo[newCol]) || 0 : 0;
     await supabase.from("balances").upsert({ user_id: transfer.toDriverId, [newCol]: newBalVal + transfer.amount }, { onConflict: "user_id" });
 
-    // Update transfer row
-    await supabase.from("transfers").update({
-      from_driver_id: transfer.fromDriverId,
-      to_driver_id: transfer.toDriverId,
-      currency: transfer.currency,
-      amount: transfer.amount,
-      comment: transfer.comment ?? "",
-    }).eq("id", transfer.id);
+    await supabase
+      .from("transfers")
+      .update({
+        from_driver_id: transfer.fromDriverId,
+        to_driver_id: transfer.toDriverId,
+        currency: transfer.currency,
+        amount: transfer.amount,
+        comment: transfer.comment ?? "",
+      })
+      .eq("id", transfer.id);
 
     return ok(null);
   },
@@ -241,41 +352,7 @@ export const api = {
     const { data: old } = await supabase.from("transfers").select("*").eq("id", transferId).maybeSingle();
     if (!old) return fail("Перевод не найден");
 
-    const currency = old.currency as string;
-    const amount = Number(old.amount);
-
-    // Check if it's a conversion (fromDriverId === toDriverId and currency has →)
-    if (old.from_driver_id === old.to_driver_id && currency.includes("→")) {
-      const [fromCur, toCur] = currency.split("→").map((s: string) => s.trim());
-      const col1 = currencyToCol(fromCur as Currency);
-      const col2 = currencyToCol(toCur as Currency);
-
-      const { data: preBal } = await supabase.from("pre_balances").select("*").eq("user_id", old.from_driver_id).maybeSingle();
-      const curFrom = preBal ? Number(preBal[col1]) || 0 : 0;
-      const curTo = preBal ? Number(preBal[col2]) || 0 : 0;
-
-      // Parse converted amount from comment
-      const commentText = old.comment || "";
-      const match = commentText.match(/→\s*([\d.,]+)/);
-      const convertedAmount = match ? Number(String(match[1]).replace(",", ".")) : null;
-
-      await supabase.from("pre_balances").upsert({ user_id: old.from_driver_id, [col1]: curFrom + amount }, { onConflict: "user_id" });
-      if (convertedAmount && convertedAmount > 0) {
-        await supabase.from("pre_balances").upsert({ user_id: old.from_driver_id, [col2]: curTo - convertedAmount }, { onConflict: "user_id" });
-      }
-    } else {
-      // Normal transfer: restore pre-balance, subtract from balance
-      const col = currencyToCol(currency as Currency);
-
-      const { data: preBal } = await supabase.from("pre_balances").select("*").eq("user_id", old.from_driver_id).maybeSingle();
-      const preVal = preBal ? Number(preBal[col]) || 0 : 0;
-      await supabase.from("pre_balances").upsert({ user_id: old.from_driver_id, [col]: preVal + amount }, { onConflict: "user_id" });
-
-      const { data: balRow } = await supabase.from("balances").select("*").eq("user_id", old.to_driver_id).maybeSingle();
-      const balVal = balRow ? Number(balRow[col]) || 0 : 0;
-      await supabase.from("balances").upsert({ user_id: old.to_driver_id, [col]: balVal - amount }, { onConflict: "user_id" });
-    }
-
+    await reverseTransferRowEffects(old);
     await supabase.from("transfers").delete().eq("id", transferId);
     return ok(null);
   },
@@ -290,14 +367,7 @@ export const api = {
     const currentFrom = preBal ? Number(preBal[fromCol]) || 0 : 0;
     const currentTo = preBal ? Number(preBal[toCol]) || 0 : 0;
 
-    let convertedAmount: number;
-    if (fromCurrency === "RUB" && toCurrency === "KZT") {
-      convertedAmount = Math.round((amount * rate) * 100) / 100;
-    } else if (fromCurrency === "KZT" && toCurrency === "RUB") {
-      convertedAmount = Math.round((amount / rate) * 100) / 100;
-    } else {
-      convertedAmount = Math.round((amount / rate) * 100) / 100;
-    }
+    const convertedAmount = computeConvertedAmount(fromCurrency, toCurrency, amount, rate);
 
     await supabase.from("pre_balances").upsert({
       user_id: driverId,
@@ -328,7 +398,8 @@ export const api = {
   getExpenses: async (driverId: string, role?: string, params?: { limit?: number; offset?: number; since?: string; until?: string }): Promise<ApiResponse<Expense[]>> => {
     let query = supabase.from("expenses").select("*, users!expenses_user_id_fkey(name)").order("date", { ascending: false });
 
-    if (role !== "Admin") {
+    const isAdmin = role === "Admin" || role === "admin";
+    if (!isAdmin) {
       query = query.eq("user_id", driverId).neq("category", "Пополнение");
     }
     if (params?.since) query = query.gte("date", params.since);
@@ -458,10 +529,26 @@ export const api = {
   },
 
   // ==================== TRUCKS ====================
-  getTrucks: async (params?: { excludeBusyForDate?: string }): Promise<ApiResponse<Truck[]>> => {
+  getTrucks: async (params?: { excludeBusyForDate?: string; date?: string }): Promise<ApiResponse<Truck[]>> => {
     const { data, error } = await supabase.from("trucks").select("*").order("name");
     if (error) return fail(error.message);
-    return ok((data || []).map((t) => ({ id: t.id, name: t.name })));
+    let list: Truck[] = (data || []).map((t) => ({ id: t.id, name: t.name }));
+
+    const excludeDate = params?.excludeBusyForDate ?? params?.date;
+    if (excludeDate) {
+      const day = excludeDate.slice(0, 10);
+      const { start, end } = almatyDayStartEndUtc(day);
+      const { data: busyRows } = await supabase.from("mileage").select("truck").gte("date", start).lte("date", end);
+      const busy = new Set(
+        (busyRows || [])
+          .map((r) => r.truck)
+          .filter(Boolean)
+          .map((s) => String(s).trim())
+      );
+      list = list.filter((t) => !busy.has(t.name));
+    }
+
+    return ok(list);
   },
 
   saveTruck: async (name: string) => {
@@ -620,3 +707,10 @@ export const api = {
     return ok(null);
   },
 };
+
+// Имена как в GAS (doPost action → handler)
+Object.assign(api, {
+  saveExpense: api.addExpense,
+  saveMileage: api.addMileage,
+  updateCurrencies: api.updateDriverCurrencies,
+});

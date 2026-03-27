@@ -67,7 +67,8 @@ export interface TransferRecord {
   id: string;
   fromDriverId: string;
   toDriverId: string;
-  currency: Currency;
+  /** Обычные валюты или конвертация вида "KZT→RUB" (как в БД / GAS) */
+  currency: string;
   amount: number;
   date: string;
   performedBy: string;

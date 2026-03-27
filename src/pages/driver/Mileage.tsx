@@ -27,11 +27,12 @@ const Mileage = () => {
   const [saving, setSaving] = useState(false);
   const [showMileageHint, setShowMileageHint] = useState(() => !localStorage.getItem("mileage-tooltip-seen"));
 
-  // Load ALL trucks (no date filtering)
+  // Как в GAS: исключить тягачи, уже занятые в пробеге за сегодня (день по календарной дате UTC)
   const { data: trucks = [] } = useQuery({
-    queryKey: ["trucks"],
+    queryKey: ["trucks", "today"],
     queryFn: async () => {
-      const result = await api.getTrucks();
+      const today = new Date().toISOString().slice(0, 10);
+      const result = await api.getTrucks({ excludeBusyForDate: today });
       return result.success && result.data ? result.data : [];
     },
   });
