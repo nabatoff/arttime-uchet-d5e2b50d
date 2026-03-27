@@ -1,229 +1,622 @@
-import { API_BASE_URL } from "@/config";
-import type { ApiResponse, ApiErrorType, AppData, CategoryInfo, Expense, MileageReport, User, Currency, UserRole, TransferRecord, Truck } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import type { ApiResponse, AppData, CategoryInfo, Expense, MileageReport, User, Currency, UserRole, TransferRecord, Truck } from "@/types";
 
-const FETCH_TIMEOUT_MS = 15000;
-const RETRY_DELAY_MS = 1000;
-const MAX_RETRIES = 2;
+const CURRENCY_COLS = ["kzt", "rub", "uzs", "cny", "eur"] as const;
+type CurrencyCol = (typeof CURRENCY_COLS)[number];
+const colToCurrency = (col: CurrencyCol): Currency => col.toUpperCase() as Currency;
+const currencyToCol = (c: Currency): CurrencyCol => c.toLowerCase() as CurrencyCol;
 
-function isRetryableErrorType(t: ApiErrorType): boolean {
-  return t === "network" || t === "timeout";
-}
-
-async function apiPost<T = unknown>(action: string, params: Record<string, unknown> | object = {}, attempt = 0): Promise<ApiResponse<T>> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(API_BASE_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action, ...params }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    const raw = await response.json();
-
-    if (!response.ok) {
-      const errType: ApiErrorType = "server";
-      const msg = (raw && raw.error) || response.statusText || `Ошибка ${response.status}`;
-      return { success: false, error: msg, errorType: errType };
-    }
-
-    if (raw.success && !raw.data) {
-      const dataKey = Object.keys(raw).find((k) => k !== "success");
-      if (dataKey) {
-        return { success: true, data: raw[dataKey] as T };
-      }
-      return { success: true } as ApiResponse<T>;
-    }
-
-    return raw as ApiResponse<T>;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    const isAbort = (error as Error)?.name === "AbortError";
-    const isNetwork = (error as TypeError)?.message === "Failed to fetch" || (error as Error)?.message?.includes("fetch");
-    const errorType: ApiErrorType = isAbort ? "timeout" : isNetwork ? "network" : "network";
-    const errorMessage = isAbort ? "Превышено время ожидания" : isNetwork ? "Нет подключения к интернету" : String(error);
-
-    if (isRetryableErrorType(errorType) && attempt < MAX_RETRIES) {
-      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-      return apiPost<T>(action, params, attempt + 1);
-    }
-
-    return { success: false, error: errorMessage, errorType };
+function balanceRowToRecord(row: Record<string, unknown>): Record<Currency, number> {
+  const result = {} as Record<Currency, number>;
+  for (const col of CURRENCY_COLS) {
+    result[colToCurrency(col)] = Number(row[col]) || 0;
   }
+  return result;
 }
 
-/** Normalize user object from API */
-function normalizeUser(raw: Record<string, unknown>): User {
+function normalizeUser(row: Record<string, unknown>, balRow?: Record<string, unknown> | null, preBalRow?: Record<string, unknown> | null): User {
   return {
-    id: String(raw.id ?? ""),
-    login: String(raw.login ?? ""),
-    name: String(raw.name ?? ""),
-    role: (String(raw.role ?? "driver").toLowerCase()) as UserRole,
-    photo: raw.photo as string | undefined,
-    availableCurrencies: String(raw.availableCurrencies ?? raw.currencies ?? ""),
-    balances: (raw.balances as Record<Currency, number>) ?? {} as Record<Currency, number>,
-    preBalances: (raw.preBalances as Record<Currency, number>) ?? {} as Record<Currency, number>,
+    id: String(row.id ?? ""),
+    login: String(row.login ?? ""),
+    name: String(row.name ?? ""),
+    role: (String(row.role ?? "driver").toLowerCase()) as UserRole,
+    photo: row.photo as string | undefined,
+    availableCurrencies: String(row.available_currencies ?? ""),
+    balances: balRow ? balanceRowToRecord(balRow) : { KZT: 0, RUB: 0, UZS: 0, CNY: 0, EUR: 0 },
+    preBalances: preBalRow ? balanceRowToRecord(preBalRow) : { KZT: 0, RUB: 0, UZS: 0, CNY: 0, EUR: 0 },
   };
 }
 
+function ok<T>(data: T): ApiResponse<T> {
+  return { success: true, data };
+}
+function fail(error: string): ApiResponse<never> {
+  return { success: false, error };
+}
+
 export const api = {
-  // Login — returns { success, user }
+  // ==================== AUTH ====================
   login: async (login: string, password: string): Promise<ApiResponse<User>> => {
-    const result = await apiPost<Record<string, unknown>>("login", { login, password });
-    if (result.success && result.data) {
-      return { success: true, data: normalizeUser(result.data) };
-    }
-    return { success: false, error: result.error || "Неверный логин или пароль" };
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("login", login)
+      .eq("password", password)
+      .maybeSingle();
+
+    if (error) return fail(error.message);
+    if (!user) return fail("Неверный логин или пароль");
+
+    const [{ data: bal }, { data: pre }] = await Promise.all([
+      supabase.from("balances").select("*").eq("user_id", user.id).maybeSingle(),
+      supabase.from("pre_balances").select("*").eq("user_id", user.id).maybeSingle(),
+    ]);
+
+    return ok(normalizeUser(user, bal, pre));
   },
 
-  // Verify password on app launch
-  verifyPassword: (login: string, password: string) =>
-    apiPost<{ valid: boolean }>("verifyPassword", { login, password }),
+  verifyPassword: async (login: string, password: string): Promise<ApiResponse<{ valid: boolean }>> => {
+    const { data, error } = await supabase
+      .from("users")
+      .select("id")
+      .eq("login", login)
+      .eq("password", password)
+      .maybeSingle();
 
-  // Categories — returns { success, categories }
+    if (error) return ok({ valid: false });
+    return ok({ valid: !!data });
+  },
+
+  // ==================== APP DATA ====================
   getAppData: async (): Promise<ApiResponse<AppData>> => {
-    const result = await apiPost<unknown>("getAppData");
-    if (!result.success) return { success: false, error: result.error ?? "Ошибка загрузки данных" };
-    // Бэкенд возвращает { success, data: CategoryInfo[] }; data может быть массивом или объектом
-    const raw = result.data;
-    const arr = Array.isArray(raw) ? raw : (raw && typeof raw === "object" && "categories" in raw ? (raw as { categories: unknown[] }).categories : []);
-    const cats: CategoryInfo[] = Array.isArray(arr) ? arr.map((c) => {
-      if (typeof c === "string") return { name: c, noReceipt: false, visibleTo: "both" as const };
-      const x = (c && typeof c === "object" ? c : {}) as Record<string, unknown>;
-      const vt = (x.visibleTo as string)?.toLowerCase();
-      return {
-        name: String(x.name ?? ""),
-        noReceipt: !!x.noReceipt,
-        visibleTo: vt === "driver" || vt === "balance" ? vt : "both",
-      } as CategoryInfo;
-    }) : [];
-    return { success: true, data: { categories: cats } };
+    const { data, error } = await supabase.from("categories").select("*").order("name");
+    if (error) return fail(error.message);
+
+    const categories: CategoryInfo[] = (data || []).map((c) => ({
+      name: c.name,
+      noReceipt: !!c.no_receipt,
+      visibleTo: (c.visible_to === "driver" || c.visible_to === "balance" ? c.visible_to : "both") as CategoryInfo["visibleTo"],
+    }));
+    return ok({ categories });
   },
 
-  // Category CRUD
-  saveCategory: (name: string, noReceipt: boolean, visibleTo?: "driver" | "balance" | "both") =>
-    apiPost("saveCategory", { name, noReceipt, visibleTo: visibleTo || "both" }),
+  // ==================== CATEGORIES ====================
+  saveCategory: async (name: string, noReceipt: boolean, visibleTo?: "driver" | "balance" | "both") => {
+    const { error } = await supabase.from("categories").insert({
+      name: name.trim(),
+      no_receipt: noReceipt,
+      visible_to: visibleTo || "both",
+    });
+    if (error) return fail(error.message);
+    return ok(null);
+  },
 
-  updateCategory: (oldName: string, newName: string, noReceipt: boolean, visibleTo?: "driver" | "balance" | "both") =>
-    apiPost("updateCategory", { oldName, newName, noReceipt, visibleTo: visibleTo || "both" }),
+  updateCategory: async (oldName: string, newName: string, noReceipt: boolean, visibleTo?: "driver" | "balance" | "both") => {
+    const { error } = await supabase
+      .from("categories")
+      .update({ name: newName.trim(), no_receipt: noReceipt, visible_to: visibleTo || "both" })
+      .eq("name", oldName.trim());
+    if (error) return fail(error.message);
+    return ok(null);
+  },
 
-  deleteCategory: (name: string) =>
-    apiPost("deleteCategory", { name }),
+  deleteCategory: async (name: string) => {
+    const { error } = await supabase.from("categories").delete().eq("name", name.trim());
+    if (error) return fail(error.message);
+    return ok(null);
+  },
 
-  // Balance — returns { success, balances }
-  getBalance: (driverId: string) =>
-    apiPost<Record<Currency, number>>("getBalance", { userId: driverId }),
+  // ==================== BALANCE ====================
+  getBalance: async (driverId: string): Promise<ApiResponse<Record<Currency, number>>> => {
+    const { data, error } = await supabase.from("balances").select("*").eq("user_id", driverId).maybeSingle();
+    if (error) return fail(error.message);
+    return ok(data ? balanceRowToRecord(data) : { KZT: 0, RUB: 0, UZS: 0, CNY: 0, EUR: 0 });
+  },
 
-  // Pre-balance
-  getPreBalance: (driverId: string) =>
-    apiPost<Record<Currency, number>>("getPreBalance", { userId: driverId }),
+  getPreBalance: async (driverId: string): Promise<ApiResponse<Record<Currency, number>>> => {
+    const { data, error } = await supabase.from("pre_balances").select("*").eq("user_id", driverId).maybeSingle();
+    if (error) return fail(error.message);
+    return ok(data ? balanceRowToRecord(data) : { KZT: 0, RUB: 0, UZS: 0, CNY: 0, EUR: 0 });
+  },
 
-  // Update pre-balance
-  updatePreBalance: (driverId: string, currency: Currency, amount: number, adminRole: string = "Admin") =>
-    apiPost("updatePreBalance", { targetUserId: driverId, currency, newAmount: amount, adminRole }),
+  updatePreBalance: async (driverId: string, currency: Currency, amount: number) => {
+    const col = currencyToCol(currency);
+    const { error } = await supabase
+      .from("pre_balances")
+      .upsert({ user_id: driverId, [col]: amount }, { onConflict: "user_id" });
+    if (error) return fail(error.message);
+    return ok(null);
+  },
 
-  // Transfer from pre-balance to main balance
-  transfer: (fromDriverId: string, toDriverId: string, currency: Currency, amount: number, performedBy: string, comment?: string, allowNegative?: boolean) =>
-    apiPost("transfer", { fromDriverId, toDriverId, currency, amount, performedBy, comment: comment ?? "", allowNegative: !!allowNegative }),
+  updateBalance: async (driverId: string, currency: Currency, amount: number) => {
+    const col = currencyToCol(currency);
+    const { error } = await supabase
+      .from("balances")
+      .upsert({ user_id: driverId, [col]: amount }, { onConflict: "user_id" });
+    if (error) return fail(error.message);
+    return ok(null);
+  },
 
-  // Get transfers history (optional: limit, offset, since, until — ISO date strings)
-  getTransfers: (params?: { limit?: number; offset?: number; since?: string; until?: string }) =>
-    apiPost<TransferRecord[]>("getTransfers", params ?? {}),
+  // ==================== TRANSFERS ====================
+  transfer: async (fromDriverId: string, toDriverId: string, currency: Currency, amount: number, performedBy: string, comment?: string, allowNegative?: boolean) => {
+    // Get pre-balance of sender
+    const { data: preBal } = await supabase.from("pre_balances").select("*").eq("user_id", fromDriverId).maybeSingle();
+    const col = currencyToCol(currency);
+    const currentPre = preBal ? Number(preBal[col]) || 0 : 0;
 
-  // Update transfer (admin only) — recalculates balances
-  updateTransfer: (transfer: { id: string; fromDriverId: string; toDriverId: string; currency: Currency; amount: number; comment?: string }) =>
-    apiPost("updateTransfer", transfer),
+    if (!allowNegative && currentPre < amount) {
+      return fail("Недостаточно средств на предбалансе");
+    }
 
-  // Delete transfer (admin only) — reverses balance changes
-  deleteTransfer: (transferId: string) =>
-    apiPost("deleteTransfer", { transferId }),
+    // Get performer name
+    let performerName = performedBy;
+    if (performedBy) {
+      const { data: pUser } = await supabase.from("users").select("name").eq("id", performedBy).maybeSingle();
+      if (pUser) performerName = pUser.name;
+    }
 
-  // Convert currency on pre-balance
-  convertPreBalance: (driverId: string, fromCurrency: Currency, toCurrency: Currency, amount: number, rate: number, performedBy: string) =>
-    apiPost("convertPreBalance", { driverId, fromCurrency, toCurrency, amount, rate, performedBy }),
+    // Update pre-balance (sender)
+    await supabase.from("pre_balances").upsert({ user_id: fromDriverId, [col]: currentPre - amount }, { onConflict: "user_id" });
 
-  // Expenses (optional: limit, offset, since, until — ISO date strings)
-  getExpenses: (driverId: string, role?: string, params?: { limit?: number; offset?: number; since?: string; until?: string }) =>
-    apiPost<Expense[]>("getExpenses", { userId: driverId, role: role || "Driver", ...params }),
+    // Update balance (receiver)
+    const { data: balRow } = await supabase.from("balances").select("*").eq("user_id", toDriverId).maybeSingle();
+    const currentBal = balRow ? Number(balRow[col]) || 0 : 0;
+    await supabase.from("balances").upsert({ user_id: toDriverId, [col]: currentBal + amount }, { onConflict: "user_id" });
 
-  // Save expense — action is "saveExpense". performedByName — имя того, кто вносит запись (админ/баланс).
-  addExpense: (expense: Omit<Expense, "id">, performedByName?: string) =>
-    apiPost<Expense>("saveExpense", {
-      userId: expense.driverId,
+    // Record transfer
+    await supabase.from("transfers").insert({
+      from_driver_id: fromDriverId,
+      to_driver_id: toDriverId,
+      currency,
+      amount,
+      performed_by: performerName,
+      comment: comment ?? "",
+    });
+
+    return ok(null);
+  },
+
+  getTransfers: async (params?: { limit?: number; offset?: number; since?: string; until?: string }): Promise<ApiResponse<TransferRecord[]>> => {
+    let query = supabase.from("transfers").select("*").order("date", { ascending: false });
+
+    if (params?.since) query = query.gte("date", params.since);
+    if (params?.until) query = query.lte("date", params.until + "T23:59:59.999Z");
+    if (params?.offset) query = query.range(params.offset, params.offset + (params.limit || 50) - 1);
+    else if (params?.limit) query = query.limit(params.limit);
+
+    const { data, error } = await query;
+    if (error) return fail(error.message);
+
+    return ok((data || []).map((r) => ({
+      id: r.id,
+      fromDriverId: r.from_driver_id || "",
+      toDriverId: r.to_driver_id || "",
+      currency: r.currency as Currency,
+      amount: Number(r.amount),
+      date: r.date,
+      performedBy: r.performed_by || "",
+      comment: r.comment || "",
+    })));
+  },
+
+  updateTransfer: async (transfer: { id: string; fromDriverId: string; toDriverId: string; currency: Currency; amount: number; comment?: string }) => {
+    // Get old transfer to reverse
+    const { data: old } = await supabase.from("transfers").select("*").eq("id", transfer.id).maybeSingle();
+    if (!old) return fail("Перевод не найден");
+
+    const oldCol = currencyToCol(old.currency as Currency);
+    const newCol = currencyToCol(transfer.currency);
+
+    // Reverse old: restore pre-balance, subtract from balance
+    const { data: oldPreFrom } = await supabase.from("pre_balances").select("*").eq("user_id", old.from_driver_id).maybeSingle();
+    const oldPreVal = oldPreFrom ? Number(oldPreFrom[oldCol]) || 0 : 0;
+    await supabase.from("pre_balances").upsert({ user_id: old.from_driver_id, [oldCol]: oldPreVal + Number(old.amount) }, { onConflict: "user_id" });
+
+    const { data: oldBalTo } = await supabase.from("balances").select("*").eq("user_id", old.to_driver_id).maybeSingle();
+    const oldBalVal = oldBalTo ? Number(oldBalTo[oldCol]) || 0 : 0;
+    await supabase.from("balances").upsert({ user_id: old.to_driver_id, [oldCol]: oldBalVal - Number(old.amount) }, { onConflict: "user_id" });
+
+    // Apply new
+    const { data: newPreFrom } = await supabase.from("pre_balances").select("*").eq("user_id", transfer.fromDriverId).maybeSingle();
+    const newPreVal = newPreFrom ? Number(newPreFrom[newCol]) || 0 : 0;
+    await supabase.from("pre_balances").upsert({ user_id: transfer.fromDriverId, [newCol]: newPreVal - transfer.amount }, { onConflict: "user_id" });
+
+    const { data: newBalTo } = await supabase.from("balances").select("*").eq("user_id", transfer.toDriverId).maybeSingle();
+    const newBalVal = newBalTo ? Number(newBalTo[newCol]) || 0 : 0;
+    await supabase.from("balances").upsert({ user_id: transfer.toDriverId, [newCol]: newBalVal + transfer.amount }, { onConflict: "user_id" });
+
+    // Update transfer row
+    await supabase.from("transfers").update({
+      from_driver_id: transfer.fromDriverId,
+      to_driver_id: transfer.toDriverId,
+      currency: transfer.currency,
+      amount: transfer.amount,
+      comment: transfer.comment ?? "",
+    }).eq("id", transfer.id);
+
+    return ok(null);
+  },
+
+  deleteTransfer: async (transferId: string) => {
+    const { data: old } = await supabase.from("transfers").select("*").eq("id", transferId).maybeSingle();
+    if (!old) return fail("Перевод не найден");
+
+    const currency = old.currency as string;
+    const amount = Number(old.amount);
+
+    // Check if it's a conversion (fromDriverId === toDriverId and currency has →)
+    if (old.from_driver_id === old.to_driver_id && currency.includes("→")) {
+      const [fromCur, toCur] = currency.split("→").map((s: string) => s.trim());
+      const col1 = currencyToCol(fromCur as Currency);
+      const col2 = currencyToCol(toCur as Currency);
+
+      const { data: preBal } = await supabase.from("pre_balances").select("*").eq("user_id", old.from_driver_id).maybeSingle();
+      const curFrom = preBal ? Number(preBal[col1]) || 0 : 0;
+      const curTo = preBal ? Number(preBal[col2]) || 0 : 0;
+
+      // Parse converted amount from comment
+      const commentText = old.comment || "";
+      const match = commentText.match(/→\s*([\d.,]+)/);
+      const convertedAmount = match ? Number(String(match[1]).replace(",", ".")) : null;
+
+      await supabase.from("pre_balances").upsert({ user_id: old.from_driver_id, [col1]: curFrom + amount }, { onConflict: "user_id" });
+      if (convertedAmount && convertedAmount > 0) {
+        await supabase.from("pre_balances").upsert({ user_id: old.from_driver_id, [col2]: curTo - convertedAmount }, { onConflict: "user_id" });
+      }
+    } else {
+      // Normal transfer: restore pre-balance, subtract from balance
+      const col = currencyToCol(currency as Currency);
+
+      const { data: preBal } = await supabase.from("pre_balances").select("*").eq("user_id", old.from_driver_id).maybeSingle();
+      const preVal = preBal ? Number(preBal[col]) || 0 : 0;
+      await supabase.from("pre_balances").upsert({ user_id: old.from_driver_id, [col]: preVal + amount }, { onConflict: "user_id" });
+
+      const { data: balRow } = await supabase.from("balances").select("*").eq("user_id", old.to_driver_id).maybeSingle();
+      const balVal = balRow ? Number(balRow[col]) || 0 : 0;
+      await supabase.from("balances").upsert({ user_id: old.to_driver_id, [col]: balVal - amount }, { onConflict: "user_id" });
+    }
+
+    await supabase.from("transfers").delete().eq("id", transferId);
+    return ok(null);
+  },
+
+  convertPreBalance: async (driverId: string, fromCurrency: Currency, toCurrency: Currency, amount: number, rate: number, performedBy: string) => {
+    if (fromCurrency === toCurrency) return fail("Валюты должны отличаться");
+    if (!(amount > 0) || !(rate > 0)) return fail("Сумма и курс должны быть > 0");
+
+    const { data: preBal } = await supabase.from("pre_balances").select("*").eq("user_id", driverId).maybeSingle();
+    const fromCol = currencyToCol(fromCurrency);
+    const toCol = currencyToCol(toCurrency);
+    const currentFrom = preBal ? Number(preBal[fromCol]) || 0 : 0;
+    const currentTo = preBal ? Number(preBal[toCol]) || 0 : 0;
+
+    let convertedAmount: number;
+    if (fromCurrency === "RUB" && toCurrency === "KZT") {
+      convertedAmount = Math.round((amount * rate) * 100) / 100;
+    } else if (fromCurrency === "KZT" && toCurrency === "RUB") {
+      convertedAmount = Math.round((amount / rate) * 100) / 100;
+    } else {
+      convertedAmount = Math.round((amount / rate) * 100) / 100;
+    }
+
+    await supabase.from("pre_balances").upsert({
+      user_id: driverId,
+      [fromCol]: currentFrom - amount,
+      [toCol]: currentTo + convertedAmount,
+    }, { onConflict: "user_id" });
+
+    // Get performer name
+    let performerName = performedBy;
+    if (performedBy) {
+      const { data: pUser } = await supabase.from("users").select("name").eq("id", performedBy).maybeSingle();
+      if (pUser) performerName = pUser.name;
+    }
+
+    await supabase.from("transfers").insert({
+      from_driver_id: driverId,
+      to_driver_id: driverId,
+      currency: `${fromCurrency}→${toCurrency}`,
+      amount,
+      performed_by: performerName,
+      comment: `Конвертация: ${amount} ${fromCurrency} → ${convertedAmount} ${toCurrency} (курс ${rate})`,
+    });
+
+    return ok({ convertedAmount });
+  },
+
+  // ==================== EXPENSES ====================
+  getExpenses: async (driverId: string, role?: string, params?: { limit?: number; offset?: number; since?: string; until?: string }): Promise<ApiResponse<Expense[]>> => {
+    let query = supabase.from("expenses").select("*, users!expenses_user_id_fkey(name)").order("date", { ascending: false });
+
+    if (role !== "Admin") {
+      query = query.eq("user_id", driverId).neq("category", "Пополнение");
+    }
+    if (params?.since) query = query.gte("date", params.since);
+    if (params?.until) query = query.lte("date", params.until + "T23:59:59.999Z");
+    if (params?.offset) query = query.range(params.offset, params.offset + (params.limit || 50) - 1);
+    else if (params?.limit) query = query.limit(params.limit);
+
+    const { data, error } = await query;
+    if (error) return fail(error.message);
+
+    return ok((data || []).map((r: Record<string, unknown>) => ({
+      id: String(r.id),
+      driverId: String(r.user_id || ""),
+      driverName: (r.users as Record<string, unknown>)?.name ? String((r.users as Record<string, unknown>).name) : "",
+      date: String(r.date),
+      category: String(r.category || ""),
+      amount: Number(r.amount) || 0,
+      currency: String(r.currency || "KZT") as Currency,
+      comment: String(r.comment || ""),
+      receiptUrl: String(r.receipt_url || ""),
+      performedBy: String(r.performed_by || ""),
+      truck: String(r.truck || ""),
+    })));
+  },
+
+  addExpense: async (expense: Omit<Expense, "id">, performedByName?: string) => {
+    // Auto-detect truck from today's mileage if not provided
+    let truckName = expense.truck || "";
+    if (!truckName) {
+      const today = new Date().toISOString().split("T")[0];
+      const { data: mileageToday } = await supabase
+        .from("mileage")
+        .select("truck")
+        .eq("user_id", expense.driverId)
+        .gte("date", today)
+        .lte("date", today + "T23:59:59.999Z")
+        .order("date", { ascending: false })
+        .limit(1);
+      if (mileageToday?.[0]?.truck) truckName = mileageToday[0].truck;
+    }
+
+    const { data, error } = await supabase.from("expenses").insert({
+      user_id: expense.driverId,
       category: expense.category,
       amount: expense.amount,
       currency: expense.currency,
       comment: expense.comment,
-      receiptUrl: expense.receiptUrl,
-      performedByName: performedByName ?? "",
-      truck: expense.truck ?? "",
-    }),
+      receipt_url: expense.receiptUrl,
+      performed_by: performedByName ?? "",
+      truck: truckName,
+    }).select("*, users!expenses_user_id_fkey(name)").single();
 
-  // Update expense
-  updateExpense: (expense: Expense) =>
-    apiPost<Expense>("updateExpense", expense),
+    if (error) return fail(error.message);
 
-  // Delete expense
-  deleteExpense: (expenseId: string) =>
-    apiPost("deleteExpense", { expenseId }),
-
-  // Trucks — список тягачей. excludeBusyForDate (ISO или yyyy-MM-dd) — исключить тягачи, занятые в этот день в пробеге
-  getTrucks: (params?: { excludeBusyForDate?: string }) =>
-    apiPost<Truck[]>("getTrucks", params ?? {}),
-  saveTruck: (name: string) => apiPost("saveTruck", { name }),
-  updateTruck: (oldName: string, newName: string) => apiPost("updateTruck", { oldName, newName }),
-  deleteTruck: (name: string) => apiPost("deleteTruck", { name }),
-
-  // Save mileage — action is "saveMileage"
-  addMileage: (report: Omit<MileageReport, "id">) =>
-    apiPost<MileageReport>("saveMileage", {
-      userId: report.driverId,
-      km: report.km,
-      photoUrl: report.photoUrl,
-      truck: report.truck ?? "",
-    }),
-
-  // Get mileage reports (optional: limit, offset, since, until)
-  getMileage: (driverId?: string, params?: { limit?: number; offset?: number; since?: string; until?: string }) =>
-    apiPost<MileageReport[]>("getMileage", { userId: driverId, ...params }),
-
-  // Update mileage record (admin)
-  updateMileage: (data: { id: string; km?: number; truck?: string }) =>
-    apiPost("updateMileage", data),
-
-  // Delete mileage record (admin)
-  deleteMileage: (mileageId: string) =>
-    apiPost("deleteMileage", { mileageId }),
-
-  // Get all drivers/users
-  getDrivers: async (): Promise<ApiResponse<User[]>> => {
-    const result = await apiPost<Record<string, unknown>[]>("getDrivers");
-    if (result.success && result.data) {
-      return { success: true, data: result.data.map(normalizeUser) };
+    // Deduct from balance (except for "Пополнение")
+    if (expense.category !== "Пополнение") {
+      const col = currencyToCol(expense.currency);
+      const { data: balRow } = await supabase.from("balances").select("*").eq("user_id", expense.driverId).maybeSingle();
+      const current = balRow ? Number(balRow[col]) || 0 : 0;
+      await supabase.from("balances").upsert({ user_id: expense.driverId, [col]: current - expense.amount }, { onConflict: "user_id" });
     }
-    return { success: false, error: "Ошибка загрузки" };
+
+    return ok({
+      id: data.id,
+      driverId: String(data.user_id),
+      date: data.date,
+      category: data.category,
+      amount: Number(data.amount),
+      currency: data.currency as Currency,
+      comment: data.comment || "",
+      receiptUrl: data.receipt_url || "",
+      performedBy: data.performed_by || "",
+      truck: data.truck || "",
+    } as Expense);
   },
 
-  // Update currencies — action is "updateCurrencies"
-  updateDriverCurrencies: (driverId: string, currencies: string, adminRole: string = "Admin") =>
-    apiPost("updateCurrencies", { targetUserId: driverId, currenciesString: currencies, adminRole }),
+  updateExpense: async (expense: Expense) => {
+    // Get old expense to reverse balance
+    const { data: old } = await supabase.from("expenses").select("*").eq("id", expense.id).maybeSingle();
+    if (!old) return fail("Расход не найден");
 
-  // Update balance — action is "updateBalance"
-  updateBalance: (driverId: string, currency: Currency, amount: number, adminRole: string = "Admin") =>
-    apiPost("updateBalance", { targetUserId: driverId, currency, newAmount: amount, adminRole }),
+    const oldCol = currencyToCol(old.currency as Currency);
+    const newCol = currencyToCol(expense.currency);
 
-  // Create driver
-  createDriver: (data: { login: string; password: string; name: string; currencies: string }) =>
-    apiPost("createDriver", data),
+    // Reverse old balance change
+    if (old.category !== "Пополнение" && old.user_id) {
+      const { data: balRow } = await supabase.from("balances").select("*").eq("user_id", old.user_id).maybeSingle();
+      const current = balRow ? Number(balRow[oldCol]) || 0 : 0;
+      await supabase.from("balances").upsert({ user_id: old.user_id, [oldCol]: current + Number(old.amount) }, { onConflict: "user_id" });
+    }
+    // Apply new balance change
+    if (expense.category !== "Пополнение" && old.user_id) {
+      const { data: balRow } = await supabase.from("balances").select("*").eq("user_id", old.user_id).maybeSingle();
+      const current = balRow ? Number(balRow[newCol]) || 0 : 0;
+      await supabase.from("balances").upsert({ user_id: old.user_id, [newCol]: current - expense.amount }, { onConflict: "user_id" });
+    }
 
-  // Delete driver (keeps reports)
-  deleteDriver: (driverId: string) =>
-    apiPost("deleteDriver", { userId: driverId }),
+    const { error } = await supabase.from("expenses").update({
+      category: expense.category,
+      amount: expense.amount,
+      currency: expense.currency,
+      comment: expense.comment,
+      receipt_url: expense.receiptUrl,
+      performed_by: expense.performedBy || "",
+      truck: expense.truck || "",
+    }).eq("id", expense.id);
 
-  // Update driver profile (name, login, password)
-  updateDriver: (driverId: string, data: { name?: string; login?: string; password?: string }) =>
-    apiPost("updateDriver", { userId: driverId, ...data }),
+    if (error) return fail(error.message);
+    return ok(null);
+  },
+
+  deleteExpense: async (expenseId: string) => {
+    const { data: old } = await supabase.from("expenses").select("*").eq("id", expenseId).maybeSingle();
+    if (!old) return fail("Запись не найдена");
+
+    // Restore balance
+    if (old.category !== "Пополнение" && old.user_id) {
+      const col = currencyToCol(old.currency as Currency);
+      const { data: balRow } = await supabase.from("balances").select("*").eq("user_id", old.user_id).maybeSingle();
+      const current = balRow ? Number(balRow[col]) || 0 : 0;
+      await supabase.from("balances").upsert({ user_id: old.user_id, [col]: current + Number(old.amount) }, { onConflict: "user_id" });
+    }
+
+    const { error } = await supabase.from("expenses").delete().eq("id", expenseId);
+    if (error) return fail(error.message);
+    return ok(null);
+  },
+
+  // ==================== TRUCKS ====================
+  getTrucks: async (params?: { excludeBusyForDate?: string }): Promise<ApiResponse<Truck[]>> => {
+    const { data, error } = await supabase.from("trucks").select("*").order("name");
+    if (error) return fail(error.message);
+    return ok((data || []).map((t) => ({ id: t.id, name: t.name })));
+  },
+
+  saveTruck: async (name: string) => {
+    const { error } = await supabase.from("trucks").insert({ name: name.trim() });
+    if (error) return fail(error.message.includes("duplicate") ? "Тягач с таким названием уже есть" : error.message);
+    return ok(null);
+  },
+
+  updateTruck: async (oldName: string, newName: string) => {
+    const { error } = await supabase.from("trucks").update({ name: newName.trim() }).eq("name", oldName.trim());
+    if (error) return fail(error.message);
+    return ok(null);
+  },
+
+  deleteTruck: async (name: string) => {
+    const { error } = await supabase.from("trucks").delete().eq("name", name.trim());
+    if (error) return fail(error.message);
+    return ok(null);
+  },
+
+  // ==================== MILEAGE ====================
+  addMileage: async (report: Omit<MileageReport, "id">) => {
+    const { data, error } = await supabase.from("mileage").insert({
+      user_id: report.driverId,
+      km: report.km,
+      photo_url: report.photoUrl,
+      truck: report.truck ?? "",
+    }).select("*, users!mileage_user_id_fkey(name, photo)").single();
+
+    if (error) return fail(error.message);
+
+    // Update truck on today's expenses
+    if (report.truck) {
+      const today = new Date().toISOString().split("T")[0];
+      await supabase.from("expenses")
+        .update({ truck: report.truck })
+        .eq("user_id", report.driverId)
+        .gte("date", today)
+        .lte("date", today + "T23:59:59.999Z");
+    }
+
+    const user = data.users as Record<string, unknown> | null;
+    return ok({
+      id: data.id,
+      driverId: data.user_id || "",
+      driverName: user?.name ? String(user.name) : "",
+      driverPhoto: user?.photo ? String(user.photo) : undefined,
+      date: data.date,
+      km: Number(data.km),
+      photoUrl: data.photo_url || "",
+      truck: data.truck || "",
+    } as MileageReport);
+  },
+
+  getMileage: async (driverId?: string, params?: { limit?: number; offset?: number; since?: string; until?: string }): Promise<ApiResponse<MileageReport[]>> => {
+    let query = supabase.from("mileage").select("*, users!mileage_user_id_fkey(name, photo)").order("date", { ascending: false });
+
+    if (driverId) query = query.eq("user_id", driverId);
+    if (params?.since) query = query.gte("date", params.since);
+    if (params?.until) query = query.lte("date", params.until + "T23:59:59.999Z");
+    if (params?.offset) query = query.range(params.offset, params.offset + (params.limit || 50) - 1);
+    else if (params?.limit) query = query.limit(params.limit);
+
+    const { data, error } = await query;
+    if (error) return fail(error.message);
+
+    return ok((data || []).map((r: Record<string, unknown>) => {
+      const user = r.users as Record<string, unknown> | null;
+      return {
+        id: String(r.id),
+        driverId: String(r.user_id || ""),
+        driverName: user?.name ? String(user.name) : "",
+        driverPhoto: user?.photo ? String(user.photo) : undefined,
+        date: String(r.date),
+        km: Number(r.km) || 0,
+        photoUrl: String(r.photo_url || ""),
+        truck: String(r.truck || ""),
+      };
+    }));
+  },
+
+  updateMileage: async (data: { id: string; km?: number; truck?: string }) => {
+    const updates: Record<string, unknown> = {};
+    if (data.km !== undefined) updates.km = data.km;
+    if (data.truck !== undefined) updates.truck = data.truck;
+
+    const { error } = await supabase.from("mileage").update(updates).eq("id", data.id);
+    if (error) return fail(error.message);
+    return ok(null);
+  },
+
+  deleteMileage: async (mileageId: string) => {
+    const { error } = await supabase.from("mileage").delete().eq("id", mileageId);
+    if (error) return fail(error.message);
+    return ok(null);
+  },
+
+  // ==================== DRIVERS ====================
+  getDrivers: async (): Promise<ApiResponse<User[]>> => {
+    const { data: users, error } = await supabase.from("users").select("*").order("name");
+    if (error) return fail(error.message);
+
+    const ids = (users || []).map((u) => u.id);
+    const [{ data: bals }, { data: preBals }] = await Promise.all([
+      supabase.from("balances").select("*").in("user_id", ids),
+      supabase.from("pre_balances").select("*").in("user_id", ids),
+    ]);
+
+    const balMap = new Map((bals || []).map((b) => [b.user_id, b]));
+    const preMap = new Map((preBals || []).map((b) => [b.user_id, b]));
+
+    return ok((users || []).map((u) => normalizeUser(u, balMap.get(u.id), preMap.get(u.id))));
+  },
+
+  updateDriverCurrencies: async (driverId: string, currencies: string) => {
+    const { error } = await supabase.from("users").update({ available_currencies: currencies }).eq("id", driverId);
+    if (error) return fail(error.message);
+    return ok(null);
+  },
+
+  createDriver: async (data: { login: string; password: string; name: string; currencies: string }) => {
+    const { data: user, error } = await supabase.from("users").insert({
+      login: data.login,
+      password: data.password,
+      name: data.name,
+      available_currencies: data.currencies,
+    }).select().single();
+
+    if (error) return fail(error.message.includes("duplicate") ? "Логин уже занят" : error.message);
+
+    return ok({
+      id: user.id,
+      login: user.login,
+      name: user.name,
+      role: "driver" as UserRole,
+      availableCurrencies: user.available_currencies || "",
+      balances: { KZT: 0, RUB: 0, UZS: 0, CNY: 0, EUR: 0 },
+      preBalances: { KZT: 0, RUB: 0, UZS: 0, CNY: 0, EUR: 0 },
+    } as User);
+  },
+
+  deleteDriver: async (driverId: string) => {
+    const { error } = await supabase.from("users").delete().eq("id", driverId);
+    if (error) return fail(error.message);
+    return ok(null);
+  },
+
+  updateDriver: async (driverId: string, data: { name?: string; login?: string; password?: string }) => {
+    const updates: Record<string, string> = {};
+    if (data.name) updates.name = data.name;
+    if (data.login) updates.login = data.login;
+    if (data.password) updates.password = data.password;
+
+    const { error } = await supabase.from("users").update(updates).eq("id", driverId);
+    if (error) return fail(error.message.includes("duplicate") ? "Этот логин уже используется" : error.message);
+    return ok(null);
+  },
 };
