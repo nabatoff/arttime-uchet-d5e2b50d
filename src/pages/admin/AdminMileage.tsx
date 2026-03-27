@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Loader2, X, CalendarIcon, Pencil, Trash2 } from "lucide-react";
-import { format, isAfter, isBefore, startOfDay, endOfDay, subDays } from "date-fns";
+import { format, startOfDay, endOfDay, subDays } from "date-fns";
 import { ru } from "date-fns/locale";
 import { cn, vibrateSuccess } from "@/lib/utils";
 import type { MileageReport, User } from "@/types";
@@ -49,9 +49,9 @@ const AdminMileage = () => {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["mileage", since ?? "", until ?? ""],
+    queryKey: ["mileage", since ?? "", until ?? "", selectedDriver],
     queryFn: async ({ pageParam = 0 }) => {
-      const result = await api.getMileage(undefined, {
+      const result = await api.getMileage(selectedDriver === "all" ? undefined : selectedDriver, {
         since,
         until,
         limit: 50,
@@ -87,15 +87,8 @@ const AdminMileage = () => {
     [allUsers],
   );
 
-  const filtered = useMemo(() => {
-    return reports.filter((r) => {
-      if (selectedDriver !== "all" && r.driverId !== selectedDriver) return false;
-      const d = new Date(r.date);
-      if (dateFrom && isBefore(d, startOfDay(dateFrom))) return false;
-      if (dateTo && isAfter(d, endOfDay(dateTo))) return false;
-      return true;
-    });
-  }, [reports, selectedDriver, dateFrom, dateTo]);
+  // Период и водитель задаются в запросе (since/until + getMileage(driverId))
+  const filtered = reports;
 
   const hasFilters = selectedDriver !== "all" || dateFrom || dateTo;
 

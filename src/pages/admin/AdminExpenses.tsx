@@ -109,13 +109,15 @@ const AdminExpenses = () => {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["adminExpenses", since ?? "", until ?? ""],
+    queryKey: ["adminExpenses", since ?? "", until ?? "", filterDriver, filterCategory],
     queryFn: async ({ pageParam = 0 }) => {
       const result = await api.getExpenses("", "Admin", {
         since,
         until,
         limit: 50,
         offset: pageParam as number,
+        filterUserId: filterDriver !== "all" ? filterDriver : undefined,
+        filterCategory: filterCategory !== "all" ? filterCategory : undefined,
       });
       return result.success && result.data ? result.data : ([] as Expense[]);
     },
@@ -167,11 +169,8 @@ const AdminExpenses = () => {
     return driver?.login || "";
   };
 
-  const filtered = allExpenses.filter((e) => {
-    if (filterDriver !== "all" && String(e.driverId) !== filterDriver) return false;
-    if (filterCategory !== "all" && e.category !== filterCategory) return false;
-    return true;
-  });
+  // Водитель и категория уже отфильтрованы на сервере (см. queryKey + getExpenses)
+  const filtered = allExpenses;
 
   const sortedExpenses = useMemo(
     () =>

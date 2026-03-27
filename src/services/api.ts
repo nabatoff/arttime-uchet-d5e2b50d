@@ -396,12 +396,28 @@ export const api = {
   },
 
   // ==================== EXPENSES ====================
-  getExpenses: async (driverId: string, role?: string, params?: { limit?: number; offset?: number; since?: string; until?: string }): Promise<ApiResponse<Expense[]>> => {
+  getExpenses: async (
+    driverId: string,
+    role?: string,
+    params?: {
+      limit?: number;
+      offset?: number;
+      since?: string;
+      until?: string;
+      /** Админ: сузить выборку по водителю (не путать с driverId для не-админа) */
+      filterUserId?: string;
+      /** Админ: сузить по категории */
+      filterCategory?: string;
+    },
+  ): Promise<ApiResponse<Expense[]>> => {
     let query = supabase.from("expenses").select("*, users!expenses_user_id_fkey(name)").order("date", { ascending: false });
 
     const isAdmin = role === "Admin" || role === "admin";
     if (!isAdmin) {
       query = query.eq("user_id", driverId).neq("category", "Пополнение");
+    } else {
+      if (params?.filterUserId) query = query.eq("user_id", params.filterUserId);
+      if (params?.filterCategory) query = query.eq("category", params.filterCategory);
     }
     if (params?.since) query = query.gte("date", params.since);
     if (params?.until) query = query.lte("date", params.until);
