@@ -14,7 +14,275 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      balances: {
+        Row: {
+          cny: number
+          eur: number
+          kzt: number
+          rub: number
+          user_id: string
+          uzs: number
+        }
+        Insert: {
+          cny?: number
+          eur?: number
+          kzt?: number
+          rub?: number
+          user_id: string
+          uzs?: number
+        }
+        Update: {
+          cny?: number
+          eur?: number
+          kzt?: number
+          rub?: number
+          user_id?: string
+          uzs?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "balances_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      categories: {
+        Row: {
+          id: string
+          name: string
+          no_receipt: boolean
+          visible_to: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          no_receipt?: boolean
+          visible_to?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          no_receipt?: boolean
+          visible_to?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          comment: string | null
+          currency: string
+          date: string
+          id: string
+          performed_by: string | null
+          receipt_url: string | null
+          truck: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          category: string
+          comment?: string | null
+          currency?: string
+          date?: string
+          id?: string
+          performed_by?: string | null
+          receipt_url?: string | null
+          truck?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          comment?: string | null
+          currency?: string
+          date?: string
+          id?: string
+          performed_by?: string | null
+          receipt_url?: string | null
+          truck?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mileage: {
+        Row: {
+          date: string
+          id: string
+          km: number
+          photo_url: string | null
+          truck: string | null
+          user_id: string | null
+        }
+        Insert: {
+          date?: string
+          id?: string
+          km: number
+          photo_url?: string | null
+          truck?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          date?: string
+          id?: string
+          km?: number
+          photo_url?: string | null
+          truck?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mileage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pre_balances: {
+        Row: {
+          cny: number
+          eur: number
+          kzt: number
+          rub: number
+          user_id: string
+          uzs: number
+        }
+        Insert: {
+          cny?: number
+          eur?: number
+          kzt?: number
+          rub?: number
+          user_id: string
+          uzs?: number
+        }
+        Update: {
+          cny?: number
+          eur?: number
+          kzt?: number
+          rub?: number
+          user_id?: string
+          uzs?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_balances_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transfers: {
+        Row: {
+          amount: number
+          comment: string | null
+          currency: string
+          date: string
+          from_driver_id: string | null
+          id: string
+          performed_by: string | null
+          to_driver_id: string | null
+        }
+        Insert: {
+          amount: number
+          comment?: string | null
+          currency: string
+          date?: string
+          from_driver_id?: string | null
+          id?: string
+          performed_by?: string | null
+          to_driver_id?: string | null
+        }
+        Update: {
+          amount?: number
+          comment?: string | null
+          currency?: string
+          date?: string
+          from_driver_id?: string | null
+          id?: string
+          performed_by?: string | null
+          to_driver_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transfers_from_driver_id_fkey"
+            columns: ["from_driver_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfers_to_driver_id_fkey"
+            columns: ["to_driver_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trucks: {
+        Row: {
+          id: string
+          name: string
+        }
+        Insert: {
+          id?: string
+          name: string
+        }
+        Update: {
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          available_currencies: string | null
+          created_at: string | null
+          id: string
+          login: string
+          name: string
+          password: string
+          photo: string | null
+          role: string
+        }
+        Insert: {
+          available_currencies?: string | null
+          created_at?: string | null
+          id?: string
+          login: string
+          name: string
+          password: string
+          photo?: string | null
+          role?: string
+        }
+        Update: {
+          available_currencies?: string | null
+          created_at?: string | null
+          id?: string
+          login?: string
+          name?: string
+          password?: string
+          photo?: string | null
+          role?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
