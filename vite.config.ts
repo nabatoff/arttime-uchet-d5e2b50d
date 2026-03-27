@@ -64,4 +64,13 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     include: ["react", "react-dom"],
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/xlsx")) return "xlsx";
+        },
+      },
+    },
+  },
 }));

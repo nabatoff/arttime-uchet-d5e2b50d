@@ -8,6 +8,7 @@ import { Loader2, Filter, X, CalendarIcon, Plus, ChevronDown } from "lucide-reac
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User } from "@/types";
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { ru } from "date-fns/locale";
+import { buildAdminExpenseListFilters } from "@/lib/expenseQueryFilters";
 import { cn, filterCategoriesByRole } from "@/lib/utils";
 import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
 import PhotoUpload from "@/components/PhotoUpload";
@@ -58,13 +59,14 @@ const BalanceExpenses = () => {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["balanceExpenses", since ?? "", until ?? ""],
+    queryKey: ["balanceExpenses", since ?? "", until ?? "", filterDriver, filterCategory],
     queryFn: async ({ pageParam = 0 }) => {
       const result = await api.getExpenses("", "Admin", {
         since,
         until,
         limit: 50,
         offset: pageParam as number,
+        ...buildAdminExpenseListFilters(filterDriver, filterCategory),
       });
       return result.success && result.data ? result.data : ([] as Expense[]);
     },
@@ -103,11 +105,7 @@ const BalanceExpenses = () => {
     return driver?.name || "Неизвестный";
   };
 
-  const filtered = allExpenses.filter((e) => {
-    if (filterDriver !== "all" && String(e.driverId) !== filterDriver) return false;
-    if (filterCategory !== "all" && e.category !== filterCategory) return false;
-    return true;
-  });
+  const filtered = allExpenses;
 
   const sortedExpenses = useMemo(
     () =>

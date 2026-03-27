@@ -10,6 +10,7 @@ import { Loader2, Filter, X, Plus, CalendarIcon, Pencil, Trash2, Download, Arrow
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_FLAGS, type Currency, type Expense, type User, type TransferRecord } from "@/types";
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { ru } from "date-fns/locale";
+import { buildAdminExpenseListFilters } from "@/lib/expenseQueryFilters";
 import { cn, vibrateSuccess } from "@/lib/utils";
 import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -116,8 +117,7 @@ const AdminExpenses = () => {
         until,
         limit: 50,
         offset: pageParam as number,
-        filterUserId: filterDriver !== "all" ? filterDriver : undefined,
-        filterCategory: filterCategory !== "all" ? filterCategory : undefined,
+        ...buildAdminExpenseListFilters(filterDriver, filterCategory),
       });
       return result.success && result.data ? result.data : ([] as Expense[]);
     },
