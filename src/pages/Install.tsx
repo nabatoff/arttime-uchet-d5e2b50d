@@ -8,6 +8,11 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+/** iOS Safari: standalone web app */
+interface NavigatorWithStandalone extends Navigator {
+  standalone?: boolean;
+}
+
 const Install = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
@@ -18,7 +23,7 @@ const Install = () => {
   useEffect(() => {
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
-      (navigator as any).standalone === true;
+      (navigator as NavigatorWithStandalone).standalone === true;
     setIsStandalone(standalone);
 
     const ua = navigator.userAgent.toLowerCase();

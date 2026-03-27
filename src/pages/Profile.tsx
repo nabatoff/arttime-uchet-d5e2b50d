@@ -9,13 +9,18 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Link } from "react-router-dom";
 import { LogOut, UserCircle, Sun, Moon, Download } from "lucide-react";
 
+interface NavigatorWithStandalone extends Navigator {
+  standalone?: boolean;
+}
+
 const Profile = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const isStandalone =
     typeof window !== "undefined" &&
-    (window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true);
+    (window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as NavigatorWithStandalone).standalone === true);
 
   const handleLogout = () => {
     setLogoutOpen(false);
