@@ -82,7 +82,10 @@ const AdminMileage = () => {
     },
   });
 
-  const drivers = useMemo(() => allUsers.filter((d) => d.role === "driver"), [allUsers]);
+  const drivers = useMemo(
+    () => allUsers.filter((d) => (d.role ?? "").toString().toLowerCase() !== "admin"),
+    [allUsers],
+  );
 
   const filtered = useMemo(() => {
     return reports.filter((r) => {

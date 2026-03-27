@@ -257,7 +257,8 @@ export const api = {
     let query = supabase.from("transfers").select("*").order("date", { ascending: false });
 
     if (params?.since) query = query.gte("date", params.since);
-    if (params?.until) query = query.lte("date", params.until + "T23:59:59.999Z");
+    // until уже приходит как полный ISO (endOfDay), не дописывать суффикс — иначе строка вида "...999Z" + "T23:59:59.999Z" ломает фильтр
+    if (params?.until) query = query.lte("date", params.until);
     if (params?.offset) query = query.range(params.offset, params.offset + (params.limit || 50) - 1);
     else if (params?.limit) query = query.limit(params.limit);
 
@@ -403,7 +404,7 @@ export const api = {
       query = query.eq("user_id", driverId).neq("category", "Пополнение");
     }
     if (params?.since) query = query.gte("date", params.since);
-    if (params?.until) query = query.lte("date", params.until + "T23:59:59.999Z");
+    if (params?.until) query = query.lte("date", params.until);
     if (params?.offset) query = query.range(params.offset, params.offset + (params.limit || 50) - 1);
     else if (params?.limit) query = query.limit(params.limit);
 
@@ -608,7 +609,7 @@ export const api = {
 
     if (driverId) query = query.eq("user_id", driverId);
     if (params?.since) query = query.gte("date", params.since);
-    if (params?.until) query = query.lte("date", params.until + "T23:59:59.999Z");
+    if (params?.until) query = query.lte("date", params.until);
     if (params?.offset) query = query.range(params.offset, params.offset + (params.limit || 50) - 1);
     else if (params?.limit) query = query.limit(params.limit);
 
