@@ -259,6 +259,7 @@ export type Database = {
           login: string
           name: string
           password: string
+          photo: string | null
           role: string
         }
         Insert: {
@@ -269,6 +270,7 @@ export type Database = {
           login: string
           name: string
           password: string
+          photo?: string | null
           role?: string
         }
         Update: {
@@ -279,6 +281,7 @@ export type Database = {
           login?: string
           name?: string
           password?: string
+          photo?: string | null
           role?: string
         }
         Relationships: []
