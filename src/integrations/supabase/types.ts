@@ -255,30 +255,30 @@ export type Database = {
           available_currencies: string | null
           created_at: string | null
           id: string
+          legacy_id: number | null
           login: string
           name: string
           password: string
-          photo: string | null
           role: string
         }
         Insert: {
           available_currencies?: string | null
           created_at?: string | null
           id?: string
+          legacy_id?: number | null
           login: string
           name: string
           password: string
-          photo?: string | null
           role?: string
         }
         Update: {
           available_currencies?: string | null
           created_at?: string | null
           id?: string
+          legacy_id?: number | null
           login?: string
           name?: string
           password?: string
-          photo?: string | null
           role?: string
         }
         Relationships: []
