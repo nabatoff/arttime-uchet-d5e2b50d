@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -11,19 +12,28 @@ import Dashboard from "./pages/driver/Dashboard";
 import Expenses from "./pages/driver/Expenses";
 import Mileage from "./pages/driver/Mileage";
 import Profile from "./pages/Profile";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminMileage from "./pages/admin/AdminMileage";
-import AdminDrivers from "./pages/admin/AdminDrivers";
-import AdminExpenses from "./pages/admin/AdminExpenses";
-import AdminCategories from "./pages/admin/AdminCategories";
-import AdminSettings from "./pages/admin/AdminSettings";
-import AdminTrucks from "./pages/admin/AdminTrucks";
 import BalanceDashboard from "./pages/balance/BalanceDashboard";
 import BalanceTransfers from "./pages/balance/BalanceTransfers";
 import BalanceExpenses from "./pages/balance/BalanceExpenses";
 import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
+
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminMileage = lazy(() => import("./pages/admin/AdminMileage"));
+const AdminDrivers = lazy(() => import("./pages/admin/AdminDrivers"));
+const AdminExpenses = lazy(() => import("./pages/admin/AdminExpenses"));
+const AdminCategories = lazy(() => import("./pages/admin/AdminCategories"));
+const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
+const AdminTrucks = lazy(() => import("./pages/admin/AdminTrucks"));
+
+function AdminRoutesFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,19 +68,21 @@ function AppRoutes() {
 
   if (user?.role === "admin") {
     return (
-      <Routes>
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/expenses" element={<AdminExpenses />} />
-        <Route path="/admin/mileage" element={<AdminMileage />} />
-        <Route path="/admin/settings" element={<AdminSettings />} />
-        <Route path="/admin/drivers" element={<AdminDrivers backTo="/admin/settings" />} />
-        <Route path="/admin/categories" element={<AdminCategories backTo="/admin/settings" />} />
-        <Route path="/admin/trucks" element={<AdminTrucks backTo="/admin/settings" />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/install" element={<Install />} />
-        <Route path="/" element={<Navigate to="/admin" replace />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <Suspense fallback={<AdminRoutesFallback />}>
+        <Routes>
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/expenses" element={<AdminExpenses />} />
+          <Route path="/admin/mileage" element={<AdminMileage />} />
+          <Route path="/admin/settings" element={<AdminSettings />} />
+          <Route path="/admin/drivers" element={<AdminDrivers backTo="/admin/settings" />} />
+          <Route path="/admin/categories" element={<AdminCategories backTo="/admin/settings" />} />
+          <Route path="/admin/trucks" element={<AdminTrucks backTo="/admin/settings" />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/install" element={<Install />} />
+          <Route path="/" element={<Navigate to="/admin" replace />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     );
   }
 

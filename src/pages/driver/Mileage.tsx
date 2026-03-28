@@ -27,7 +27,7 @@ const Mileage = () => {
   const [saving, setSaving] = useState(false);
   const [showMileageHint, setShowMileageHint] = useState(() => !localStorage.getItem("mileage-tooltip-seen"));
 
-  // Как в GAS: исключить тягачи, уже занятые в пробеге за сегодня (день по календарной дате UTC)
+  // Исключить тягачи, уже занятые в пробеге за сегодня (календарный день по UTC-дате)
   const { data: trucks = [] } = useQuery({
     queryKey: ["trucks", "today"],
     queryFn: async () => {

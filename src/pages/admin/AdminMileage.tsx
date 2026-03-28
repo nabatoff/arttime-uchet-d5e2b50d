@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { api } from "@/services/api";
 import PageLayout from "@/components/PageLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,7 +23,12 @@ const AdminMileage = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [zoomImageLoadError, setZoomImageLoadError] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (zoomImage) setZoomImageLoadError(false);
+  }, [zoomImage]);
   useScrollReveal(listRef);
   const defaultDateTo = endOfDay(new Date());
   const defaultDateFrom = startOfDay(subDays(new Date(), 30));
@@ -193,7 +198,15 @@ const AdminMileage = () => {
               <CardContent className="p-3">
                 <div className="flex items-center gap-3">
                   {r.photoUrl ? (
-                    <img src={r.photoUrl} alt="Спидометр" onClick={() => setZoomImage(r.photoUrl)} className="h-10 w-10 shrink-0 cursor-pointer rounded border border-border object-cover transition-opacity hover:opacity-80" />
+                    <img
+                      src={r.photoUrl}
+                      alt="Спидометр"
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      onClick={() => setZoomImage(r.photoUrl)}
+                      className="h-10 w-10 shrink-0 cursor-pointer rounded border border-border object-cover transition-opacity hover:opacity-80"
+                    />
                   ) : (
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-secondary text-xs text-muted-foreground">—</div>
                   )}
@@ -236,10 +249,49 @@ const AdminMileage = () => {
       )}
 
       {zoomImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm" onClick={() => setZoomImage(null)}>
-          <img src={zoomImage} alt="Фото" className="max-h-[85vh] max-w-[90vw] rounded-lg object-contain shadow-lg" />
-          <button onClick={() => setZoomImage(null)} className="absolute right-4 top-4 rounded-full bg-secondary p-2">
-            <X className="h-5 w-5 text-foreground" />
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/92 p-4"
+          onClick={() => {
+            setZoomImage(null);
+            setZoomImageLoadError(false);
+          }}
+        >
+          <div className="relative flex min-h-[200px] min-w-0 max-h-[85vh] max-w-[90vw] shrink-0 items-center justify-center">
+            {zoomImageLoadError ? (
+              <div className="flex flex-col items-center gap-3 rounded-lg bg-card p-6 text-center" onClick={(e) => e.stopPropagation()}>
+                <p className="text-sm text-muted-foreground">Не удалось загрузить изображение</p>
+                <a
+                  href={zoomImage}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-primary underline"
+                >
+                  Открыть в новой вкладке
+                </a>
+              </div>
+            ) : (
+              <img
+                key={zoomImage}
+                src={zoomImage}
+                alt="Фото"
+                referrerPolicy="no-referrer"
+                decoding="async"
+                onClick={(e) => e.stopPropagation()}
+                onError={() => setZoomImageLoadError(true)}
+                className="relative z-[1] max-h-[85vh] max-w-full rounded-lg border border-white/10 bg-neutral-950 object-contain shadow-lg"
+              />
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setZoomImage(null);
+              setZoomImageLoadError(false);
+            }}
+            className="absolute right-4 top-4 z-10 rounded-full bg-background/90 p-2 text-foreground hover:bg-background"
+          >
+            <X className="h-5 w-5" />
           </button>
         </div>
       )}

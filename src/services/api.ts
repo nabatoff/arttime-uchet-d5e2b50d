@@ -6,7 +6,7 @@ type CurrencyCol = (typeof CURRENCY_COLS)[number];
 const colToCurrency = (col: CurrencyCol): Currency => col.toUpperCase() as Currency;
 const currencyToCol = (c: Currency): CurrencyCol => c.toLowerCase() as CurrencyCol;
 
-/** Календарный день Asia/Almaty (UTC+5, без DST) — как в GAS для excludeBusyForDate */
+/** Календарный день Asia/Almaty (UTC+5, без DST) для границ «сегодня» */
 function almatyDayStartEndUtc(isoDate: string): { start: string; end: string } {
   const d = isoDate.slice(0, 10);
   const start = new Date(`${d}T00:00:00+05:00`);
@@ -38,7 +38,7 @@ function parseConvertedFromComment(comment: string): number | null {
   return m ? Number(String(m[1]).replace(",", ".")) : null;
 }
 
-/** Откат эффектов строки перевода на балансах (как deleteTransfer в GAS) */
+/** Откат эффектов строки перевода на балансах */
 async function reverseTransferRowEffects(old: {
   from_driver_id: string | null;
   to_driver_id: string | null;
@@ -731,10 +731,3 @@ export const api = {
     return ok(null);
   },
 };
-
-// Имена как в GAS (doPost action → handler)
-Object.assign(api, {
-  saveExpense: api.addExpense,
-  saveMileage: api.addMileage,
-  updateCurrencies: api.updateDriverCurrencies,
-});

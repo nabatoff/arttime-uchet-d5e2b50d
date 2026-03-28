@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { api } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
@@ -30,6 +30,11 @@ const BalanceExpenses = () => {
   useScrollReveal(listRef);
   const [showFilters, setShowFilters] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [zoomImageLoadError, setZoomImageLoadError] = useState(false);
+
+  useEffect(() => {
+    if (zoomImage) setZoomImageLoadError(false);
+  }, [zoomImage]);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
   // Self-expense dialog state (for role balance)
@@ -452,6 +457,9 @@ const BalanceExpenses = () => {
                     <img
                       src={expense.receiptUrl}
                       alt="Чек"
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
                       onClick={() => setZoomImage(expense.receiptUrl)}
                       className="h-12 w-12 shrink-0 cursor-pointer rounded-xl border border-border/60 object-cover transition-transform hover:scale-105"
                     />
@@ -507,9 +515,48 @@ const BalanceExpenses = () => {
 
       {/* Image zoom overlay */}
       {zoomImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm" onClick={() => setZoomImage(null)}>
-          <img src={zoomImage} alt="Чек" className="max-h-[85vh] max-w-[90vw] rounded-lg border border-border object-contain shadow-lg" />
-          <button onClick={() => setZoomImage(null)} className="absolute right-4 top-4 rounded-full bg-background/80 p-2 text-foreground hover:bg-background">
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/92 p-4"
+          onClick={() => {
+            setZoomImage(null);
+            setZoomImageLoadError(false);
+          }}
+        >
+          <div className="relative flex min-h-[200px] min-w-0 max-h-[85vh] max-w-[90vw] shrink-0 items-center justify-center">
+            {zoomImageLoadError ? (
+              <div className="flex flex-col items-center gap-3 rounded-lg bg-card p-6 text-center" onClick={(e) => e.stopPropagation()}>
+                <p className="text-sm text-muted-foreground">Не удалось загрузить изображение</p>
+                <a
+                  href={zoomImage}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-primary underline"
+                >
+                  Открыть в новой вкладке
+                </a>
+              </div>
+            ) : (
+              <img
+                key={zoomImage}
+                src={zoomImage}
+                alt="Чек"
+                referrerPolicy="no-referrer"
+                decoding="async"
+                onClick={(e) => e.stopPropagation()}
+                onError={() => setZoomImageLoadError(true)}
+                className="relative z-[1] max-h-[85vh] max-w-full rounded-lg border border-white/10 bg-neutral-950 object-contain shadow-lg"
+              />
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setZoomImage(null);
+              setZoomImageLoadError(false);
+            }}
+            className="absolute right-4 top-4 z-10 rounded-full bg-background/90 p-2 text-foreground hover:bg-background"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>

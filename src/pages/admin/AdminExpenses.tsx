@@ -802,6 +802,9 @@ const AdminExpenses = () => {
                     <img
                       src={expense.receiptUrl}
                       alt="Чек"
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
                       onClick={() => setZoomImage(expense.receiptUrl)}
                       className="h-12 w-12 shrink-0 cursor-pointer rounded-xl border border-border/60 object-cover transition-transform hover:scale-105"
                     />
@@ -996,7 +999,7 @@ const AdminExpenses = () => {
       {/* Image zoom overlay */}
       {zoomImage && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/92 p-4"
           onClick={() => { setZoomImage(null); setZoomImageLoadError(false); }}
         >
           <div className="relative flex min-h-[200px] min-w-0 max-h-[85vh] max-w-[90vw] shrink-0 items-center justify-center">
@@ -1017,15 +1020,18 @@ const AdminExpenses = () => {
                 key={zoomImage}
                 src={zoomImage}
                 alt="Чек"
+                referrerPolicy="no-referrer"
+                decoding="async"
                 onClick={(e) => e.stopPropagation()}
                 onError={() => setZoomImageLoadError(true)}
-                className="max-h-[85vh] max-w-full rounded-lg border border-border bg-card object-contain shadow-lg"
+                className="relative z-[1] max-h-[85vh] max-w-full rounded-lg border border-white/10 bg-neutral-950 object-contain shadow-lg"
               />
             )}
           </div>
           <button
+            type="button"
             onClick={(e) => { e.stopPropagation(); setZoomImage(null); setZoomImageLoadError(false); }}
-            className="absolute right-4 top-4 z-10 rounded-full bg-background/80 p-2 text-foreground hover:bg-background"
+            className="absolute right-4 top-4 z-10 rounded-full bg-background/90 p-2 text-foreground hover:bg-background"
           >
             <X className="h-5 w-5" />
           </button>
