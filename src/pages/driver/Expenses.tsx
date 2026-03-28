@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/services/api";
 import PageLayout from "@/components/PageLayout";
+import { FullScreenImageOverlay } from "@/components/FullScreenImageOverlay";
 import PhotoUpload from "@/components/PhotoUpload";
 import OfflineBanner from "@/components/OfflineBanner";
 import { Button } from "@/components/ui/button";
@@ -24,11 +25,6 @@ const Expenses = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [zoomImage, setZoomImage] = useState<string | null>(null);
-  const [zoomImageLoadError, setZoomImageLoadError] = useState(false);
-
-  useEffect(() => {
-    if (zoomImage) setZoomImageLoadError(false);
-  }, [zoomImage]);
   const listRef = useRef<HTMLDivElement>(null);
   useScrollReveal(listRef);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -401,53 +397,7 @@ const Expenses = () => {
         </div>
       )}
 
-      {zoomImage && (
-        <div
-          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/92 p-4"
-          onClick={() => {
-            setZoomImage(null);
-            setZoomImageLoadError(false);
-          }}
-        >
-          <div className="relative flex min-h-[200px] min-w-0 max-h-[85vh] max-w-[90vw] shrink-0 items-center justify-center">
-            {zoomImageLoadError ? (
-              <div className="flex flex-col items-center gap-3 rounded-lg bg-card p-6 text-center" onClick={(e) => e.stopPropagation()}>
-                <p className="text-sm text-muted-foreground">Не удалось загрузить изображение</p>
-                <a
-                  href={zoomImage}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-medium text-primary underline"
-                >
-                  Открыть в новой вкладке
-                </a>
-              </div>
-            ) : (
-              <img
-                key={zoomImage}
-                src={zoomImage}
-                alt="Чек"
-                referrerPolicy="no-referrer"
-                decoding="async"
-                onClick={(e) => e.stopPropagation()}
-                onError={() => setZoomImageLoadError(true)}
-                className="relative z-[1] max-h-[85vh] max-w-full rounded-lg border border-white/10 bg-neutral-950 object-contain shadow-lg"
-              />
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setZoomImage(null);
-              setZoomImageLoadError(false);
-            }}
-            className="absolute right-4 top-4 z-10 rounded-full bg-background/90 p-2 text-foreground hover:bg-background"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-      )}
+      <FullScreenImageOverlay url={zoomImage} onClose={() => setZoomImage(null)} alt="Чек" />
     </PageLayout>
   );
 };
