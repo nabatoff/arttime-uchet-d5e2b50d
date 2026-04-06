@@ -291,7 +291,31 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      exec_transfer_pre_to_balance: {
+        Args: {
+          p_allow_negative?: boolean
+          p_amount: number
+          p_comment?: string
+          p_currency: string
+          p_from: string
+          p_performed_by?: string
+          p_to: string
+        }
+        Returns: string
+      }
+      exec_convert_pre_balance: {
+        Args: {
+          p_amount: number
+          p_comment?: string
+          p_converted: number
+          p_currency_label: string
+          p_from: string
+          p_performed_by?: string
+          p_to: string
+          p_user: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

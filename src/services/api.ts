@@ -39,19 +39,19 @@ function parseConvertedFromComment(comment: string): number | null {
   return m ? Number(String(m[1]).replace(",", ".")) : null;
 }
 
-/** Откат эффектов строки перевода на балансах */
+/** Откат эффектов строки перевода на балансах. При ошибке — текст для пользователя. */
 async function reverseTransferRowEffects(old: {
   from_driver_id: string | null;
   to_driver_id: string | null;
   currency: string;
   amount: number;
   comment: string | null;
-}): Promise<void> {
+}): Promise<string | null> {
   const currency = old.currency;
   const amount = Number(old.amount);
   const fromId = old.from_driver_id;
   const toId = old.to_driver_id;
-  if (!fromId || !toId) return;
+  if (!fromId || !toId) return null;
 
   if (isConversionTransferRow(fromId, toId, currency)) {
     const parts = currency.split("→").map((s) => s.trim());
@@ -63,20 +63,25 @@ async function reverseTransferRowEffects(old: {
     const curFrom = preBal ? Number(preBal[col1]) || 0 : 0;
     const curTo = preBal ? Number(preBal[col2]) || 0 : 0;
     const convertedAmount = parseConvertedFromComment(old.comment || "");
-    await supabase.from("pre_balances").upsert({ user_id: fromId, [col1]: curFrom + amount }, { onConflict: "user_id" });
+    const { error: e1 } = await supabase.from("pre_balances").upsert({ user_id: fromId, [col1]: curFrom + amount }, { onConflict: "user_id" });
+    if (e1) return e1.message;
     if (convertedAmount !== null && convertedAmount > 0) {
-      await supabase.from("pre_balances").upsert({ user_id: fromId, [col2]: curTo - convertedAmount }, { onConflict: "user_id" });
+      const { error: e2 } = await supabase.from("pre_balances").upsert({ user_id: fromId, [col2]: curTo - convertedAmount }, { onConflict: "user_id" });
+      if (e2) return e2.message;
     }
   } else {
     const col = currencyToCol(currency as Currency);
     const { data: preBal } = await supabase.from("pre_balances").select("*").eq("user_id", fromId).maybeSingle();
     const preVal = preBal ? Number(preBal[col]) || 0 : 0;
-    await supabase.from("pre_balances").upsert({ user_id: fromId, [col]: preVal + amount }, { onConflict: "user_id" });
+    const { error: e1 } = await supabase.from("pre_balances").upsert({ user_id: fromId, [col]: preVal + amount }, { onConflict: "user_id" });
+    if (e1) return e1.message;
 
     const { data: balRow } = await supabase.from("balances").select("*").eq("user_id", toId).maybeSingle();
     const balVal = balRow ? Number(balRow[col]) || 0 : 0;
-    await supabase.from("balances").upsert({ user_id: toId, [col]: balVal - amount }, { onConflict: "user_id" });
+    const { error: e2 } = await supabase.from("balances").upsert({ user_id: toId, [col]: balVal - amount }, { onConflict: "user_id" });
+    if (e2) return e2.message;
   }
+  return null;
 }
 
 function balanceRowToRecord(row: Record<string, unknown>): Record<Currency, number> {
@@ -217,8 +222,8 @@ export const api = {
 
   // ==================== TRANSFERS ====================
   transfer: async (fromDriverId: string, toDriverId: string, currency: Currency, amount: number, performedBy: string, comment?: string, allowNegative?: boolean) => {
-    // Get pre-balance of sender
-    const { data: preBal } = await supabase.from("pre_balances").select("*").eq("user_id", fromDriverId).maybeSingle();
+    const { data: preBal, error: preSelErr } = await supabase.from("pre_balances").select("*").eq("user_id", fromDriverId).maybeSingle();
+    if (preSelErr) return fail(preSelErr.message);
     const col = currencyToCol(currency);
     const currentPre = preBal ? Number(preBal[col]) || 0 : 0;
 
@@ -226,30 +231,22 @@ export const api = {
       return fail("Недостаточно средств на предбалансе");
     }
 
-    // Get performer name
     let performerName = performedBy;
     if (performedBy) {
       const { data: pUser } = await supabase.from("users").select("name").eq("id", performedBy).maybeSingle();
       if (pUser) performerName = pUser.name;
     }
 
-    // Update pre-balance (sender)
-    await supabase.from("pre_balances").upsert({ user_id: fromDriverId, [col]: currentPre - amount }, { onConflict: "user_id" });
-
-    // Update balance (receiver)
-    const { data: balRow } = await supabase.from("balances").select("*").eq("user_id", toDriverId).maybeSingle();
-    const currentBal = balRow ? Number(balRow[col]) || 0 : 0;
-    await supabase.from("balances").upsert({ user_id: toDriverId, [col]: currentBal + amount }, { onConflict: "user_id" });
-
-    // Record transfer
-    await supabase.from("transfers").insert({
-      from_driver_id: fromDriverId,
-      to_driver_id: toDriverId,
-      currency,
-      amount,
-      performed_by: performerName,
-      comment: comment ?? "",
+    const { error: rpcErr } = await supabase.rpc("exec_transfer_pre_to_balance", {
+      p_from: fromDriverId,
+      p_to: toDriverId,
+      p_currency: currency,
+      p_amount: amount,
+      p_performed_by: performerName,
+      p_comment: comment ?? "",
+      p_allow_negative: !!allowNegative,
     });
+    if (rpcErr) return fail(rpcErr.message);
 
     return ok(null);
   },
@@ -282,7 +279,8 @@ export const api = {
     const { data: old } = await supabase.from("transfers").select("*").eq("id", transfer.id).maybeSingle();
     if (!old) return fail("Перевод не найден");
 
-    await reverseTransferRowEffects(old);
+    const revErr = await reverseTransferRowEffects(old);
+    if (revErr) return fail(revErr);
 
     if (isConversionTransferRow(transfer.fromDriverId, transfer.toDriverId, transfer.currency)) {
       const parts = transfer.currency.split("→").map((s) => s.trim());
@@ -299,20 +297,21 @@ export const api = {
       const toCol = currencyToCol(toCur);
       const currentFrom = preBal ? Number(preBal[fromCol]) || 0 : 0;
       const currentTo = preBal ? Number(preBal[toCol]) || 0 : 0;
-      await supabase.from("pre_balances").upsert(
+      const { error: convUpsertErr } = await supabase.from("pre_balances").upsert(
         {
           user_id: transfer.fromDriverId,
           [fromCol]: currentFrom - transfer.amount,
           [toCol]: currentTo + convertedAmount,
         },
-        { onConflict: "user_id" }
+        { onConflict: "user_id" },
       );
+      if (convUpsertErr) return fail(convUpsertErr.message);
 
       let commentFinal = String(transfer.comment ?? "").trim();
       if (!commentFinal) {
         commentFinal = `Конвертация: ${transfer.amount} ${fromCur} → ${convertedAmount} ${toCur} (курс ${rate})`;
       }
-      await supabase
+      const { error: updErr } = await supabase
         .from("transfers")
         .update({
           from_driver_id: transfer.fromDriverId,
@@ -322,6 +321,7 @@ export const api = {
           comment: commentFinal,
         })
         .eq("id", transfer.id);
+      if (updErr) return fail(updErr.message);
 
       return ok(null);
     }
@@ -330,13 +330,19 @@ export const api = {
 
     const { data: newPreFrom } = await supabase.from("pre_balances").select("*").eq("user_id", transfer.fromDriverId).maybeSingle();
     const newPreVal = newPreFrom ? Number(newPreFrom[newCol]) || 0 : 0;
-    await supabase.from("pre_balances").upsert({ user_id: transfer.fromDriverId, [newCol]: newPreVal - transfer.amount }, { onConflict: "user_id" });
+    const { error: preErr } = await supabase
+      .from("pre_balances")
+      .upsert({ user_id: transfer.fromDriverId, [newCol]: newPreVal - transfer.amount }, { onConflict: "user_id" });
+    if (preErr) return fail(preErr.message);
 
     const { data: newBalTo } = await supabase.from("balances").select("*").eq("user_id", transfer.toDriverId).maybeSingle();
     const newBalVal = newBalTo ? Number(newBalTo[newCol]) || 0 : 0;
-    await supabase.from("balances").upsert({ user_id: transfer.toDriverId, [newCol]: newBalVal + transfer.amount }, { onConflict: "user_id" });
+    const { error: balErr } = await supabase
+      .from("balances")
+      .upsert({ user_id: transfer.toDriverId, [newCol]: newBalVal + transfer.amount }, { onConflict: "user_id" });
+    if (balErr) return fail(balErr.message);
 
-    await supabase
+    const { error: trErr } = await supabase
       .from("transfers")
       .update({
         from_driver_id: transfer.fromDriverId,
@@ -346,6 +352,7 @@ export const api = {
         comment: transfer.comment ?? "",
       })
       .eq("id", transfer.id);
+    if (trErr) return fail(trErr.message);
 
     return ok(null);
   },
@@ -354,8 +361,10 @@ export const api = {
     const { data: old } = await supabase.from("transfers").select("*").eq("id", transferId).maybeSingle();
     if (!old) return fail("Перевод не найден");
 
-    await reverseTransferRowEffects(old);
-    await supabase.from("transfers").delete().eq("id", transferId);
+    const revErr = await reverseTransferRowEffects(old);
+    if (revErr) return fail(revErr);
+    const { error: delErr } = await supabase.from("transfers").delete().eq("id", transferId);
+    if (delErr) return fail(delErr.message);
     return ok(null);
   },
 
@@ -363,35 +372,26 @@ export const api = {
     if (fromCurrency === toCurrency) return fail("Валюты должны отличаться");
     if (!(amount > 0) || !(rate > 0)) return fail("Сумма и курс должны быть > 0");
 
-    const { data: preBal } = await supabase.from("pre_balances").select("*").eq("user_id", driverId).maybeSingle();
-    const fromCol = currencyToCol(fromCurrency);
-    const toCol = currencyToCol(toCurrency);
-    const currentFrom = preBal ? Number(preBal[fromCol]) || 0 : 0;
-    const currentTo = preBal ? Number(preBal[toCol]) || 0 : 0;
-
     const convertedAmount = computeConvertedAmount(fromCurrency, toCurrency, amount, rate);
 
-    await supabase.from("pre_balances").upsert({
-      user_id: driverId,
-      [fromCol]: currentFrom - amount,
-      [toCol]: currentTo + convertedAmount,
-    }, { onConflict: "user_id" });
-
-    // Get performer name
     let performerName = performedBy;
     if (performedBy) {
       const { data: pUser } = await supabase.from("users").select("name").eq("id", performedBy).maybeSingle();
       if (pUser) performerName = pUser.name;
     }
 
-    await supabase.from("transfers").insert({
-      from_driver_id: driverId,
-      to_driver_id: driverId,
-      currency: `${fromCurrency}→${toCurrency}`,
-      amount,
-      performed_by: performerName,
-      comment: `Конвертация: ${amount} ${fromCurrency} → ${convertedAmount} ${toCurrency} (курс ${rate})`,
+    const convComment = `Конвертация: ${amount} ${fromCurrency} → ${convertedAmount} ${toCurrency} (курс ${rate})`;
+    const { error: rpcErr } = await supabase.rpc("exec_convert_pre_balance", {
+      p_user: driverId,
+      p_from: fromCurrency,
+      p_to: toCurrency,
+      p_amount: amount,
+      p_converted: convertedAmount,
+      p_currency_label: `${fromCurrency}→${toCurrency}`,
+      p_performed_by: performerName,
+      p_comment: convComment,
     });
+    if (rpcErr) return fail(rpcErr.message);
 
     return ok({ convertedAmount });
   },
