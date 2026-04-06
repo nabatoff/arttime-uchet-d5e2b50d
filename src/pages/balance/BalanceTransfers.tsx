@@ -100,15 +100,12 @@ const BalanceTransfers = () => {
           const amountNum = parseNumber(convAmount);
           const rateNum = parseNumber(convRate);
           if (!amountNum || !rateNum) return 0;
-          if (convFromCurrency === "RUB" && convToCurrency === "KZT") {
-            // RUB → KZT: количество рублей * rate (тенге за 1 рубль)
+          if (convToCurrency === "KZT" && convFromCurrency !== "KZT") {
             return Math.round(amountNum * rateNum * 100) / 100;
           }
-          if (convFromCurrency === "KZT" && convToCurrency === "RUB") {
-            // KZT → RUB: количество тенге / rate (тенге за 1 рубль)
+          if (convFromCurrency === "KZT" && convToCurrency !== "KZT") {
             return Math.round((amountNum / rateNum) * 100) / 100;
           }
-          // Остальные пары: по умолчанию делим
           return Math.round((amountNum / rateNum) * 100) / 100;
         })()
       : 0;
@@ -344,14 +341,31 @@ const BalanceTransfers = () => {
                 className="bg-secondary border-border"
               />
 
-              <Input
-                placeholder="Курс обмена"
-                type="text"
-                inputMode="decimal"
-                value={convRate}
-                onChange={(e) => setConvRate(e.target.value.replace(",", "."))}
-                className="bg-secondary border-border"
-              />
+              <div>
+                <Input
+                  placeholder="Курс обмена"
+                  type="text"
+                  inputMode="decimal"
+                  value={convRate}
+                  onChange={(e) => setConvRate(e.target.value.replace(",", "."))}
+                  className="bg-secondary border-border"
+                />
+                {convToCurrency === "KZT" && convFromCurrency !== "KZT" && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Курс: тенге за 1 {convFromCurrency}. Зачисление: сумма × курс.
+                  </p>
+                )}
+                {convFromCurrency === "KZT" && convToCurrency !== "KZT" && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Курс: тенге за 1 {convToCurrency}. Зачисление: сумма в ₸ ÷ курс.
+                  </p>
+                )}
+                {convFromCurrency !== "KZT" && convToCurrency !== "KZT" && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Пара без ₸: зачисление = сумма ÷ курс (курс по вашему соглашению).
+                  </p>
+                )}
+              </div>
 
               {convertedAmount > 0 && (
                 <div className="rounded-lg bg-secondary/80 p-3 text-center">

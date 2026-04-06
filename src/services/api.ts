@@ -18,11 +18,12 @@ function isConversionTransferRow(fromId: string | null, toId: string | null, cur
   return !!(fromId && toId && fromId === toId && String(currency).includes("→"));
 }
 
+/** Курс = тенге за 1 единицу валюты в паре с KZT. *→KZT: ×, KZT→*: ÷. Без KZT — деление на курс. */
 function computeConvertedAmount(fromCurrency: Currency, toCurrency: Currency, amount: number, rate: number): number {
-  if (fromCurrency === "RUB" && toCurrency === "KZT") {
+  if (toCurrency === "KZT" && fromCurrency !== "KZT") {
     return Math.round(amount * rate * 100) / 100;
   }
-  if (fromCurrency === "KZT" && toCurrency === "RUB") {
+  if (fromCurrency === "KZT" && toCurrency !== "KZT") {
     return Math.round((amount / rate) * 100) / 100;
   }
   return Math.round((amount / rate) * 100) / 100;
