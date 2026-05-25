@@ -54,18 +54,21 @@ export type Database = {
           id: string
           name: string
           no_receipt: boolean
+          sort_order: number | null
           visible_to: string
         }
         Insert: {
           id?: string
           name: string
           no_receipt?: boolean
+          sort_order?: number | null
           visible_to?: string
         }
         Update: {
           id?: string
           name?: string
           no_receipt?: boolean
+          sort_order?: number | null
           visible_to?: string
         }
         Relationships: []

@@ -16,6 +16,7 @@ import type {
   Truck,
   WalletType,
 } from "@/types";
+import { sortCategories } from "@/lib/utils";
 
 const CURRENCY_COLS = ["kzt", "rub", "uzs", "cny", "eur"] as const;
 type CurrencyCol = (typeof CURRENCY_COLS)[number];
@@ -171,26 +172,36 @@ export const api = {
 
   // ==================== APP DATA ====================
   getAppData: async (): Promise<ApiResponse<AppData>> => {
-    const { data, error } = await supabase.from("categories").select("*").order("name");
+    const { data, error } = await supabase.from("categories").select("*");
     if (error) return fail(error.message);
 
-    const categories: CategoryInfo[] = (data || []).map((c) => ({
+    const categories: CategoryInfo[] = sortCategories((data || []).map((c) => ({
       name: c.name,
       noReceipt: !!c.no_receipt,
       visibleTo: (c.visible_to === "driver" || c.visible_to === "balance" ? c.visible_to : "both") as CategoryInfo["visibleTo"],
-    }));
+      sortOrder: c.sort_order == null ? null : Number(c.sort_order),
+    })));
     return ok({ categories });
   },
 
   // ==================== CATEGORIES ====================
-  saveCategory: async (name: string, noReceipt: boolean, visibleTo?: "driver" | "balance" | "both") => {
+  saveCategory: async (
+    name: string,
+    noReceipt: boolean,
+    visibleTo?: "driver" | "balance" | "both",
+    sortOrder?: number | null,
+  ) => {
     const { error } = await supabase.from("categories").insert({
       name: name.trim(),
       no_receipt: noReceipt,
       visible_to: visibleTo || "both",
+      sort_order: sortOrder ?? null,
     });
     if (error) {
       if (error.code === "23505" || /duplicate|unique/i.test(error.message)) {
+        if (/sort_order/i.test(error.message)) {
+          return fail("Такой порядковый номер уже занят другой категорией");
+        }
         return fail("Категория уже существует");
       }
       return fail(error.message);
@@ -198,12 +209,31 @@ export const api = {
     return ok(null);
   },
 
-  updateCategory: async (oldName: string, newName: string, noReceipt: boolean, visibleTo?: "driver" | "balance" | "both") => {
+  updateCategory: async (
+    oldName: string,
+    newName: string,
+    noReceipt: boolean,
+    visibleTo?: "driver" | "balance" | "both",
+    sortOrder?: number | null,
+  ) => {
     const { error } = await supabase
       .from("categories")
-      .update({ name: newName.trim(), no_receipt: noReceipt, visible_to: visibleTo || "both" })
+      .update({
+        name: newName.trim(),
+        no_receipt: noReceipt,
+        visible_to: visibleTo || "both",
+        sort_order: sortOrder ?? null,
+      })
       .eq("name", oldName.trim());
-    if (error) return fail(error.message);
+    if (error) {
+      if (error.code === "23505" || /duplicate|unique/i.test(error.message)) {
+        if (/sort_order/i.test(error.message)) {
+          return fail("Такой порядковый номер уже занят другой категорией");
+        }
+        return fail(error.message);
+      }
+      return fail(error.message);
+    }
     return ok(null);
   },
 

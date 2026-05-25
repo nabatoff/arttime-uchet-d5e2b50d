@@ -122,6 +122,8 @@ export interface CategoryInfo {
   noReceipt: boolean;
   /** Кому видна категория: водитель, balance или оба. По умолчанию "both". */
   visibleTo?: CategoryVisibleTo;
+  /** Порядок отображения. Задаётся вручную в админке. */
+  sortOrder?: number | null;
 }
 
 export interface AppData {

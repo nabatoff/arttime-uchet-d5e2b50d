@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { api } from "@/services/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PageLayout from "@/components/PageLayout";
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Loader2, ImageOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, sortCategories } from "@/lib/utils";
 import type { CategoryInfo, CategoryVisibleTo } from "@/types";
 
 const VISIBLE_TO_LABELS: Record<CategoryVisibleTo, string> = {
@@ -19,12 +19,28 @@ const VISIBLE_TO_LABELS: Record<CategoryVisibleTo, string> = {
   both: "Оба",
 };
 
+function parseSortOrderInput(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const num = Number(trimmed.replace(",", "."));
+  if (!Number.isInteger(num) || num < 1) return null;
+  return num;
+}
+
+function getMaxSortOrder(categories: CategoryInfo[]): number {
+  return categories.reduce((max, cat) => {
+    if (cat.sortOrder == null) return max;
+    return cat.sortOrder > max ? cat.sortOrder : max;
+  }, 0);
+}
+
 const AdminCategories = ({ backTo }: { backTo?: string } = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<CategoryInfo | null>(null);
   const [name, setName] = useState("");
+  const [sortOrderInput, setSortOrderInput] = useState("");
   const [noReceipt, setNoReceipt] = useState(false);
   const [visibleTo, setVisibleTo] = useState<CategoryVisibleTo>("both");
   const [saving, setSaving] = useState(false);
@@ -38,9 +54,19 @@ const AdminCategories = ({ backTo }: { backTo?: string } = {}) => {
     },
   });
 
+  const sortedCategories = useMemo(() => sortCategories(categories), [categories]);
+  const maxSortOrder = useMemo(() => getMaxSortOrder(categories), [categories]);
+  const parsedSortOrder = parseSortOrderInput(sortOrderInput);
+  const sortOrderInvalid = sortOrderInput.trim() !== "" && parsedSortOrder == null;
+  const duplicateCategory = useMemo(() => {
+    if (parsedSortOrder == null) return null;
+    return categories.find((cat) => cat.sortOrder === parsedSortOrder && cat.name !== editing?.name) ?? null;
+  }, [categories, parsedSortOrder, editing?.name]);
+
   const openAdd = () => {
     setEditing(null);
     setName("");
+    setSortOrderInput("");
     setNoReceipt(false);
     setVisibleTo("both");
     setDialogOpen(true);
@@ -49,24 +75,27 @@ const AdminCategories = ({ backTo }: { backTo?: string } = {}) => {
   const openEdit = (cat: CategoryInfo) => {
     setEditing(cat);
     setName(cat.name);
+    setSortOrderInput(cat.sortOrder == null ? "" : String(cat.sortOrder));
     setNoReceipt(cat.noReceipt);
     setVisibleTo(cat.visibleTo === "driver" || cat.visibleTo === "balance" ? cat.visibleTo : "both");
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || sortOrderInvalid || duplicateCategory) return;
     setSaving(true);
-    if (editing) {
-      await api.updateCategory(editing.name, name.trim(), noReceipt, visibleTo);
-      toast({ title: "Категория обновлена" });
-    } else {
-      await api.saveCategory(name.trim(), noReceipt, visibleTo);
-      toast({ title: "Категория создана" });
-    }
+    const sortOrder = parsedSortOrder;
+    const result = editing
+      ? await api.updateCategory(editing.name, name.trim(), noReceipt, visibleTo, sortOrder)
+      : await api.saveCategory(name.trim(), noReceipt, visibleTo, sortOrder);
     setSaving(false);
-    setDialogOpen(false);
-    queryClient.invalidateQueries({ queryKey: ["appData"] });
+    if (result.success) {
+      toast({ title: editing ? "Категория обновлена" : "Категория создана" });
+      setDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["appData"] });
+    } else {
+      toast({ title: result.error || "Ошибка", variant: "destructive" });
+    }
   };
 
   const handleDelete = async () => {
@@ -89,11 +118,11 @@ const AdminCategories = ({ backTo }: { backTo?: string } = {}) => {
 
       {isLoading ? (
         <p className="py-10 text-center text-muted-foreground">Загрузка...</p>
-      ) : categories.length === 0 ? (
+      ) : sortedCategories.length === 0 ? (
         <p className="py-10 text-center text-muted-foreground">Нет категорий</p>
       ) : (
         <div className="space-y-2">
-          {categories.map((cat) => (
+          {sortedCategories.map((cat) => (
             <div
               key={cat.name}
               className={cn(
@@ -102,6 +131,11 @@ const AdminCategories = ({ backTo }: { backTo?: string } = {}) => {
               )}
             >
               <div className="flex items-center gap-3 min-w-0 flex-wrap">
+                {cat.sortOrder != null && (
+                  <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-md bg-primary/10 px-2 text-xs font-semibold text-primary shrink-0">
+                    {cat.sortOrder}
+                  </span>
+                )}
                 <span className="text-sm font-medium truncate">{cat.name}</span>
                 {cat.noReceipt && (
                   <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground shrink-0">
@@ -132,7 +166,6 @@ const AdminCategories = ({ backTo }: { backTo?: string } = {}) => {
         </div>
       )}
 
-      {/* Add/Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
@@ -147,6 +180,33 @@ const AdminCategories = ({ backTo }: { backTo?: string } = {}) => {
               onChange={(e) => setName(e.target.value)}
               className="h-12 bg-secondary"
             />
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Порядок отображения</p>
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                placeholder="Например: 1"
+                value={sortOrderInput}
+                onChange={(e) => setSortOrderInput(e.target.value)}
+                className="h-12 bg-secondary"
+              />
+              <p className="text-xs text-muted-foreground">
+                {maxSortOrder > 0
+                  ? `Последняя занятая цифра: ${maxSortOrder}. Можно поставить ${maxSortOrder + 1}.`
+                  : "Пока ни одна категория не пронумерована."}
+              </p>
+              {sortOrderInvalid && (
+                <p className="text-xs text-destructive">Введите целое число от 1 и выше или оставьте поле пустым.</p>
+              )}
+              {duplicateCategory && (
+                <p className="text-xs text-destructive">
+                  Такая цифра уже есть у категории «{duplicateCategory.name}».
+                  {maxSortOrder > 0 ? ` Последняя занятая цифра: ${maxSortOrder}.` : ""}
+                </p>
+              )}
+            </div>
             <div className="flex items-center justify-between rounded-xl bg-secondary p-3">
               <div>
                 <p className="text-sm font-medium">Без фото чека</p>
@@ -169,7 +229,7 @@ const AdminCategories = ({ backTo }: { backTo?: string } = {}) => {
             </div>
             <Button
               onClick={handleSave}
-              disabled={!name.trim() || saving}
+              disabled={!name.trim() || saving || sortOrderInvalid || !!duplicateCategory}
               className="h-12 w-full text-base font-semibold"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Сохранить"}
@@ -178,7 +238,6 @@ const AdminCategories = ({ backTo }: { backTo?: string } = {}) => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
