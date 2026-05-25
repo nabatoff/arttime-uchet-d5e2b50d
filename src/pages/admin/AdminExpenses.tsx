@@ -15,9 +15,12 @@ import { buildAdminExpenseListFilters, type FilterExpenseKind } from "@/lib/expe
 import { cn, vibrateSuccess } from "@/lib/utils";
 import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import CategoryPicker from "@/components/CategoryPicker";
+import ExpenseFormShell from "@/components/ExpenseFormShell";
+import { getExpenseFormErrors, shouldConfirmLargeExpense } from "@/lib/expenseFormValidation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
@@ -56,6 +59,12 @@ const AdminExpenses = () => {
   const [editTransferAmount, setEditTransferAmount] = useState("");
   const [editTransferComment, setEditTransferComment] = useState("");
   const [deleteTransferTarget, setDeleteTransferTarget] = useState<TransferRecord | null>(null);
+  const [addCategoryPickerOpen, setAddCategoryPickerOpen] = useState(false);
+  const [editCategoryPickerOpen, setEditCategoryPickerOpen] = useState(false);
+  const [showAddValidation, setShowAddValidation] = useState(false);
+  const [showEditValidation, setShowEditValidation] = useState(false);
+  const [confirmLargeOpen, setConfirmLargeOpen] = useState(false);
+  const [confirmLargeAction, setConfirmLargeAction] = useState<"add" | "edit">("add");
   const { toast } = useToast();
 
   const defaultDateTo = endOfDay(new Date());
@@ -185,6 +194,39 @@ const AdminExpenses = () => {
 
   const addCategoryNoReceipt = categories.find((c) => c.name === addCategory)?.noReceipt ?? false;
 
+  const addFormErrors = useMemo(() => {
+    if (addType === "topup") {
+      const errors = getExpenseFormErrors({
+        amount: addAmount,
+        category: "x",
+        receiptUrl: "",
+        noReceipt: true,
+      });
+      return errors;
+    }
+    return getExpenseFormErrors({
+      amount: addAmount,
+      category: addCategory,
+      receiptUrl: addReceiptUrl,
+      noReceipt: addCategoryNoReceipt,
+    });
+  }, [addType, addAmount, addCategory, addReceiptUrl, addCategoryNoReceipt]);
+
+  const editFormErrors = useMemo(() => {
+    const errors = getExpenseFormErrors({
+      amount: editAmount,
+      category: editCategory,
+      receiptUrl: "x",
+      noReceipt: true,
+    });
+    return errors;
+  }, [editAmount, editCategory]);
+
+  const editCategories = useMemo(() => {
+    if (categories.some((c) => c.name === "Пополнение")) return categories;
+    return [{ name: "Пополнение", noReceipt: true }, ...categories];
+  }, [categories]);
+
   const loading = loadingExpenses;
 
   const getDriverName = (driverId: string) => {
@@ -275,16 +317,17 @@ const AdminExpenses = () => {
     setEditCurrency(expense.currency);
     setEditComment(expense.comment);
     setEditTruck(expense.truck ?? "");
+    setShowEditValidation(false);
     setEditOpen(true);
   };
 
-  const handleEditSave = async () => {
+  const performEditSave = async () => {
     if (!editExpense) return;
     setSaving(true);
     const result = await api.updateExpense({
       ...editExpense,
       category: editCategory,
-      amount: Number(editAmount),
+      amount: Number(editAmount.replace(",", ".")),
       currency: editCurrency,
       comment: editComment,
       truck: editTruck || undefined,
@@ -293,11 +336,27 @@ const AdminExpenses = () => {
       toast({ title: "Запись обновлена" });
       vibrateSuccess();
       setEditOpen(false);
+      setConfirmLargeOpen(false);
       await reloadData();
     } else {
       toast({ title: result.error || "Ошибка обновления", variant: "destructive" });
     }
     setSaving(false);
+  };
+
+  const handleEditSave = () => {
+    if (!editExpense) return;
+    setShowEditValidation(true);
+    if (Object.keys(editFormErrors).length > 0) return;
+
+    const driverBalance = drivers.find((d) => String(d.id) === String(editExpense.driverId))?.balances?.[editCurrency];
+    const balanceForConfirm = editCategory === "Пополнение" ? undefined : driverBalance;
+    if (shouldConfirmLargeExpense(editAmount, editCurrency, balanceForConfirm)) {
+      setConfirmLargeAction("edit");
+      setConfirmLargeOpen(true);
+      return;
+    }
+    void performEditSave();
   };
 
   const handleDelete = async () => {
@@ -359,11 +418,17 @@ const AdminExpenses = () => {
     await reloadData();
   };
 
-  const handleAddExpense = async () => {
-    if (!addDriver || !addAmount) {
-      toast({ title: "Выберите водителя и сумму", variant: "destructive" });
-      return;
-    }
+  const resetAddForm = () => {
+    setAddAmount("");
+    setAddComment("");
+    setAddCategory("");
+    setAddReceiptUrl("");
+    setAddTruck("");
+    setShowAddValidation(false);
+  };
+
+  const performAddExpense = async () => {
+    if (!addDriver || !addAmount) return;
     setSaving(true);
 
     const operatorName = currentUser?.name ?? "";
@@ -375,7 +440,7 @@ const AdminExpenses = () => {
           driverId: addDriver,
           date: new Date().toISOString(),
           category: "Пополнение",
-          amount: Number(addAmount),
+          amount: Number(addAmount.replace(",", ".")),
           currency: addCurrency,
           comment: addComment || "Пополнение предварительного баланса",
           receiptUrl: "",
@@ -395,7 +460,7 @@ const AdminExpenses = () => {
           driverId: addDriver,
           date: new Date().toISOString(),
           category: addCategory || "Другое",
-          amount: Number(addAmount),
+          amount: Number(addAmount.replace(",", ".")),
           currency: addCurrency,
           comment: addComment,
           receiptUrl: addReceiptUrl,
@@ -416,11 +481,27 @@ const AdminExpenses = () => {
     if (!success) return;
 
     setAddOpen(false);
-    setAddAmount("");
-    setAddComment("");
-    setAddCategory("");
-    setAddReceiptUrl("");
+    setConfirmLargeOpen(false);
+    resetAddForm();
     await reloadData();
+  };
+
+  const handleAddExpense = () => {
+    setShowAddValidation(true);
+    if (!addDriver) {
+      toast({ title: "Выберите водителя", variant: "destructive" });
+      return;
+    }
+    if (Object.keys(addFormErrors).length > 0) return;
+
+    const driverBalance = drivers.find((d) => String(d.id) === addDriver)?.balances?.[addCurrency];
+    const balanceForConfirm = addType === "expense" ? driverBalance : undefined;
+    if (shouldConfirmLargeExpense(addAmount, addCurrency, balanceForConfirm)) {
+      setConfirmLargeAction("add");
+      setConfirmLargeOpen(true);
+      return;
+    }
+    void performAddExpense();
   };
 
   const exportToExcel = () => {
@@ -479,142 +560,157 @@ const AdminExpenses = () => {
           <Download className="h-4 w-4" />
           {!hasActiveFilters && " Excel"}
         </Button>
-        <Dialog open={addOpen} onOpenChange={setAddOpen}>
-          <DialogTrigger asChild>
-            <Button size={hasActiveFilters ? "icon" : "sm"} className={hasActiveFilters ? "h-8 w-8 shrink-0" : "gap-1.5 shrink-0"}>
+        <ExpenseFormShell
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          title={addType === "topup" ? "Пополнение баланса" : "Новый расход"}
+          trigger={
+            <Button
+              size={hasActiveFilters ? "icon" : "sm"}
+              className={hasActiveFilters ? "h-8 w-8 shrink-0" : "gap-1.5 shrink-0"}
+              onClick={() => setAddOpen(true)}
+            >
               <Plus className="h-4 w-4" />
               {!hasActiveFilters && " Добавить"}
             </Button>
-          </DialogTrigger>
-          <DialogContent className="bg-card border-border">
-            <DialogHeader>
-              <DialogTitle className="text-foreground">
-                {addType === "topup" ? "Пополнение баланса" : "Новый расход"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              {/* Type toggle */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setAddType("expense")}
-                  className={cn(
-                    "flex-1 rounded-lg py-2 text-sm font-medium transition-colors",
-                    addType === "expense" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
-                  )}
-                >
-                  Расход
-                </button>
-                <button
-                  onClick={() => setAddType("topup")}
-                  className={cn(
-                    "flex-1 rounded-lg py-2 text-sm font-medium transition-colors",
-                    addType === "topup" ? "bg-green-600 text-white" : "bg-secondary text-muted-foreground"
-                  )}
-                >
-                  Пополнение
-                </button>
-              </div>
+          }
+          footer={
+            <Button
+              onClick={handleAddExpense}
+              disabled={saving}
+              className="h-12 w-full text-base font-semibold"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : addType === "topup" ? "Пополнить" : "Сохранить расход"}
+            </Button>
+          }
+        >
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setAddType("expense")}
+                className={cn(
+                  "flex-1 rounded-lg py-2 text-sm font-medium transition-colors",
+                  addType === "expense" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+                )}
+              >
+                Расход
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddType("topup")}
+                className={cn(
+                  "flex-1 rounded-lg py-2 text-sm font-medium transition-colors",
+                  addType === "topup" ? "bg-green-600 text-white" : "bg-secondary text-muted-foreground"
+                )}
+              >
+                Пополнение
+              </button>
+            </div>
 
-              {/* Driver */}
+            <div className="space-y-1">
               <Select value={addDriver} onValueChange={setAddDriver}>
-                <SelectTrigger className="bg-secondary border-border">
+                <SelectTrigger className={cn("h-12 bg-secondary border-border", showAddValidation && !addDriver && "border-destructive")}>
                   <SelectValue placeholder="Выберите водителя" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" sideOffset={4}>
                   {drivers.map((d) => (
                     <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-
-              {/* Category (only for expense) */}
-              {addType === "expense" && (
-                <Select value={addCategory} onValueChange={setAddCategory}>
-                  <SelectTrigger className="bg-secondary border-border">
-                    <SelectValue placeholder="Категория" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {showAddValidation && !addDriver && (
+                <p className="text-xs text-destructive">Выберите водителя</p>
               )}
+            </div>
 
-              {addType === "expense" && (
-                <Select value={addTruck || "__none__"} onValueChange={(v) => setAddTruck(v === "__none__" ? "" : v)}>
-                  <SelectTrigger className="bg-secondary border-border">
-                    <SelectValue placeholder="Тягач (необязательно)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">—</SelectItem>
-                    {trucks.map((t) => (
-                      <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+            {addType === "expense" && (
+              <CategoryPicker
+                value={addCategory}
+                onChange={setAddCategory}
+                categories={categories}
+                open={addCategoryPickerOpen}
+                onOpenChange={setAddCategoryPickerOpen}
+                error={showAddValidation ? addFormErrors.category : undefined}
+              />
+            )}
 
-              {/* Amount */}
+            {addType === "expense" && (
+              <Select value={addTruck || "__none__"} onValueChange={(v) => setAddTruck(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="h-12 bg-secondary border-border">
+                  <SelectValue placeholder="Тягач (необязательно)" />
+                </SelectTrigger>
+                <SelectContent position="popper" sideOffset={4}>
+                  <SelectItem value="__none__">—</SelectItem>
+                  {trucks.map((t) => (
+                    <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            <div className="space-y-1">
               <Input
                 placeholder="Сумма"
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={addAmount}
                 onChange={(e) => setAddAmount(e.target.value)}
-                className="bg-secondary border-border"
+                className={cn("h-12 bg-secondary border-border", showAddValidation && addFormErrors.amount && "border-destructive")}
               />
-
-              {/* Currency */}
-              <div className="flex flex-wrap gap-2">
-                {ALL_CURRENCIES.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setAddCurrency(c)}
-                    className={cn(
-                      "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-                      addCurrency === c ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
-                    )}
-                  >
-                    {CURRENCY_FLAGS[c]} {c}
-                  </button>
-                ))}
-              </div>
-
-              {addDriver && (
-                <p className="text-xs text-muted-foreground">
-                  Текущий баланс:{" "}
-                  {(() => {
-                    const driver = drivers.find((d) => String(d.id) === addDriver);
-                    const value = driver?.balances?.[addCurrency] ?? 0;
-                    return value.toLocaleString("ru-RU", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    });
-                  })()}{" "}
-                  {CURRENCY_SYMBOLS[addCurrency]}
-                </p>
+              {showAddValidation && addFormErrors.amount && (
+                <p className="text-xs text-destructive">{addFormErrors.amount}</p>
               )}
-
-              {/* Comment */}
-              <Input
-                placeholder="Комментарий"
-                value={addComment}
-                onChange={(e) => setAddComment(e.target.value)}
-                className="bg-secondary border-border"
-              />
-
-              {/* Receipt photo (only for expense, unless noReceipt) */}
-              {addType === "expense" && !addCategoryNoReceipt && (
-                <PhotoUpload label="Фото чека" onUpload={setAddReceiptUrl} />
-              )}
-
-              <Button className="w-full" onClick={handleAddExpense} disabled={saving || (addType === "expense" && !addCategoryNoReceipt && !addReceiptUrl)}>
-                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {addType === "topup" ? "Пополнить" : "Сохранить расход"}
-              </Button>
             </div>
-          </DialogContent>
-        </Dialog>
+
+            <div className="flex flex-wrap gap-2">
+              {ALL_CURRENCIES.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setAddCurrency(c)}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                    addCurrency === c ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+                  )}
+                >
+                  {CURRENCY_FLAGS[c]} {c}
+                </button>
+              ))}
+            </div>
+
+            {addDriver && (
+              <p className="text-xs text-muted-foreground">
+                Текущий баланс:{" "}
+                {(() => {
+                  const driver = drivers.find((d) => String(d.id) === addDriver);
+                  const value = driver?.balances?.[addCurrency] ?? 0;
+                  return value.toLocaleString("ru-RU", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  });
+                })()}{" "}
+                {CURRENCY_SYMBOLS[addCurrency]}
+              </p>
+            )}
+
+            <Input
+              placeholder="Комментарий"
+              value={addComment}
+              onChange={(e) => setAddComment(e.target.value)}
+              className="h-12 bg-secondary border-border"
+            />
+
+            {addType === "expense" && !addCategoryNoReceipt && (
+              <div className="space-y-1">
+                <PhotoUpload label="Фото чека" onUpload={setAddReceiptUrl} />
+                {showAddValidation && addFormErrors.receipt && (
+                  <p className="text-xs text-destructive">{addFormErrors.receipt}</p>
+                )}
+              </div>
+            )}
+          </div>
+        </ExpenseFormShell>
       </div>
 
       {/* Filters panel */}
@@ -627,7 +723,7 @@ const AdminExpenses = () => {
               <SelectTrigger className="h-10 bg-secondary">
                 <SelectValue placeholder="Все водители" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" sideOffset={4}>
                 <SelectItem value="all">Все водители</SelectItem>
                 {drivers.map((d) => (
                   <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
@@ -643,7 +739,7 @@ const AdminExpenses = () => {
               <SelectTrigger className="h-10 bg-secondary">
                 <SelectValue placeholder="Все категории" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" sideOffset={4}>
                 <SelectItem value="all">Все категории</SelectItem>
                 {categories.map((c) => (
                   <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
@@ -662,7 +758,7 @@ const AdminExpenses = () => {
               <SelectTrigger className="h-10 bg-secondary">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" sideOffset={4}>
                 <SelectItem value="all">Все</SelectItem>
                 <SelectItem value="expenses">Только расходы</SelectItem>
                 <SelectItem value="topups">Только пополнения</SelectItem>
@@ -785,9 +881,17 @@ const AdminExpenses = () => {
       {loading ? (
         <ExpenseListSkeleton count={6} />
       ) : filtered.length === 0 ? (
-        <p className="py-10 text-center text-muted-foreground">
-          {hasActiveFilters ? "Нет расходов по выбранным фильтрам" : "Нет расходов"}
-        </p>
+        <div className="flex flex-col items-center gap-4 py-12 text-center">
+          <p className="text-muted-foreground">
+            {hasActiveFilters ? "Нет расходов по выбранным фильтрам" : "Нет расходов"}
+          </p>
+          {!hasActiveFilters && (
+            <Button onClick={() => setAddOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Добавить расход
+            </Button>
+          )}
+        </div>
       ) : (
         <div ref={listRef} className="space-y-3">
           <p className="mb-2 text-xs text-muted-foreground">
@@ -948,43 +1052,52 @@ const AdminExpenses = () => {
 
       {/* Edit dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-foreground">Редактировать запись</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <Select value={editCategory} onValueChange={setEditCategory}>
-              <SelectTrigger className="bg-secondary border-border">
-                <SelectValue placeholder="Категория" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Пополнение">Пополнение</SelectItem>
-                {categories.map((c) => (
-                  <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input placeholder="Сумма" type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="bg-secondary border-border" />
+            <CategoryPicker
+              value={editCategory}
+              onChange={setEditCategory}
+              categories={editCategories}
+              open={editCategoryPickerOpen}
+              onOpenChange={setEditCategoryPickerOpen}
+              error={showEditValidation ? editFormErrors.category : undefined}
+            />
+            <div className="space-y-1">
+              <Input
+                placeholder="Сумма"
+                type="text"
+                inputMode="decimal"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                className={cn("h-12 bg-secondary border-border", showEditValidation && editFormErrors.amount && "border-destructive")}
+              />
+              {showEditValidation && editFormErrors.amount && (
+                <p className="text-xs text-destructive">{editFormErrors.amount}</p>
+              )}
+            </div>
             <div className="flex flex-wrap gap-2">
               {ALL_CURRENCIES.map((c) => (
-                <button key={c} onClick={() => setEditCurrency(c)} className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition-colors", editCurrency === c ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")}>
+                <button key={c} type="button" onClick={() => setEditCurrency(c)} className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition-colors", editCurrency === c ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")}>
                   {CURRENCY_FLAGS[c]} {c}
                 </button>
               ))}
             </div>
-            <Input placeholder="Комментарий" value={editComment} onChange={(e) => setEditComment(e.target.value)} className="bg-secondary border-border" />
+            <Input placeholder="Комментарий" value={editComment} onChange={(e) => setEditComment(e.target.value)} className="h-12 bg-secondary border-border" />
             <Select value={editTruck || "__none__"} onValueChange={(v) => setEditTruck(v === "__none__" ? "" : v)}>
-              <SelectTrigger className="bg-secondary border-border">
+              <SelectTrigger className="h-12 bg-secondary border-border">
                 <SelectValue placeholder="Тягач" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" sideOffset={4}>
                 <SelectItem value="__none__">—</SelectItem>
                 {trucks.map((t) => (
                   <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Button className="w-full" onClick={handleEditSave} disabled={saving}>
+            <Button className="h-12 w-full" onClick={handleEditSave} disabled={saving}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Сохранить
             </Button>
@@ -1014,7 +1127,7 @@ const AdminExpenses = () => {
 
       {/* Edit transfer dialog */}
       <Dialog open={editTransferOpen} onOpenChange={setEditTransferOpen}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-foreground">Редактировать перевод</DialogTitle>
           </DialogHeader>
@@ -1063,6 +1176,24 @@ const AdminExpenses = () => {
             <AlertDialogCancel>Отмена</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteTransfer} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmLargeOpen} onOpenChange={setConfirmLargeOpen}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Подтвердить сумму?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {Number((confirmLargeAction === "add" ? addAmount : editAmount).replace(",", ".")).toLocaleString("ru-RU")}{" "}
+              {CURRENCY_SYMBOLS[confirmLargeAction === "add" ? addCurrency : editCurrency]} — крупная сумма.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void (confirmLargeAction === "add" ? performAddExpense() : performEditSave())}>
+              Подтвердить
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

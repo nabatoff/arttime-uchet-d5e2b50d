@@ -142,7 +142,7 @@ const PageLayout = ({ children, title, backTo }: PageLayoutProps) => {
           </div>
         </header>
       )}
-      <main className="flex-1 px-4 pb-20 pt-4 overflow-hidden">
+      <main className="flex-1 overflow-y-auto px-4 pb-20 pt-4">
         <PageTransition>{content}</PageTransition>
       </main>
       <BottomNav />

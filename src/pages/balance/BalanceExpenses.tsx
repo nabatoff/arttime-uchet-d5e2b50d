@@ -14,11 +14,14 @@ import { cn, filterCategoriesByRole } from "@/lib/utils";
 import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
 import PhotoUpload from "@/components/PhotoUpload";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import CategoryPicker from "@/components/CategoryPicker";
+import ExpenseFormShell from "@/components/ExpenseFormShell";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { getExpenseFormErrors, shouldConfirmLargeExpense } from "@/lib/expenseFormValidation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useScrollReveal } from "@/hooks/useGsap";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { vibrateSuccess } from "@/lib/utils";
@@ -41,6 +44,9 @@ const BalanceExpenses = () => {
   const [comment, setComment] = useState("");
   const [receiptUrl, setReceiptUrl] = useState("");
   const [saving, setSaving] = useState(false);
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
+  const [showValidation, setShowValidation] = useState(false);
+  const [confirmLargeOpen, setConfirmLargeOpen] = useState(false);
 
   const defaultDateTo = endOfDay(new Date());
   const defaultDateFrom = startOfDay(new Date());
@@ -102,6 +108,16 @@ const BalanceExpenses = () => {
     [categories, user?.role]
   );
 
+  const { data: balances } = useQuery({
+    queryKey: ["balance", user?.id],
+    queryFn: async () => {
+      const result = await api.getBalance(user!.id);
+      if (result.success && result.data) return result.data;
+      return {} as Record<Currency, number>;
+    },
+    enabled: !!user,
+  });
+
   const getDriverName = (driverId: string) => {
     const driver = drivers.find((d) => String(d.id) === String(driverId));
     return driver?.name || "Неизвестный";
@@ -160,16 +176,30 @@ const BalanceExpenses = () => {
   const selectedCategoryNoReceipt =
     categories.find((c) => c.name === category)?.noReceipt ?? false;
 
+  const formErrors = getExpenseFormErrors({
+    amount,
+    category,
+    receiptUrl,
+    noReceipt: selectedCategoryNoReceipt,
+  });
+  const hasFormErrors = Object.keys(formErrors).length > 0;
+
   const resetForm = () => {
     setAmount("");
     setCurrency(activeCurrenciesForUser[0] || "KZT");
     setCategory("");
     setComment("");
     setReceiptUrl("");
+    setShowValidation(false);
   };
 
-  const handleSave = async () => {
-    if (!user || !amount || !category || (!receiptUrl && !selectedCategoryNoReceipt)) return;
+  const openAddDialog = () => {
+    resetForm();
+    setDialogOpen(true);
+  };
+
+  const performSave = async () => {
+    if (!user) return;
     setSaving(true);
     await api.addExpense({
       driverId: user.id,
@@ -185,10 +215,21 @@ const BalanceExpenses = () => {
     await queryClient.invalidateQueries({ queryKey: ["balanceExpenses"] });
     setSaving(false);
     setDialogOpen(false);
+    setConfirmLargeOpen(false);
     resetForm();
   };
 
-  const canSave = amount && category && (receiptUrl || selectedCategoryNoReceipt) && !saving;
+  const handleSave = () => {
+    if (!user) return;
+    setShowValidation(true);
+    if (hasFormErrors) return;
+    const currentBalance = balances?.[currency];
+    if (shouldConfirmLargeExpense(amount, currency, currentBalance)) {
+      setConfirmLargeOpen(true);
+      return;
+    }
+    void performSave();
+  };
 
   return (
     <PageLayout title="Расходы">
@@ -215,55 +256,69 @@ const BalanceExpenses = () => {
         )}
         <div className="flex-1 min-w-0" />
         {user?.role === "balance" && (
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5 shrink-0">
+          <ExpenseFormShell
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            title="Новый расход (мой)"
+            trigger={
+              <Button size="sm" className="gap-1.5 shrink-0" onClick={openAddDialog}>
                 <Plus className="h-4 w-4" />
                 Добавить
               </Button>
-            </DialogTrigger>
-            <DialogContent className="border-border bg-card text-foreground sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Новый расход (мой)</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
+            }
+            footer={
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                className="h-12 w-full text-base font-semibold"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Сохранить"}
+              </Button>
+            }
+          >
+            <div className="space-y-4">
+              <div className="space-y-1">
                 <Input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   placeholder="Сумма"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="h-12 bg-secondary"
+                  className={cn("h-12 bg-secondary", showValidation && formErrors.amount && "border-destructive")}
                 />
-                <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
-                  <SelectTrigger className="h-12 bg-secondary">
-                    <SelectValue placeholder="Валюта" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeCurrenciesForUser.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c} ({CURRENCY_SYMBOLS[c]})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="h-12 bg-secondary">
-                    <SelectValue placeholder="Категория" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoriesForRole.map((c) => (
-                      <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  placeholder="Комментарий"
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  className="h-12 bg-secondary"
-                />
-                {!selectedCategoryNoReceipt && (
-                  receiptUrl ? (
+                {showValidation && formErrors.amount && (
+                  <p className="text-xs text-destructive">{formErrors.amount}</p>
+                )}
+              </div>
+              <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
+                <SelectTrigger className="h-12 bg-secondary">
+                  <SelectValue placeholder="Валюта" />
+                </SelectTrigger>
+                <SelectContent position="popper" sideOffset={4}>
+                  {activeCurrenciesForUser.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c} ({CURRENCY_SYMBOLS[c]})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <CategoryPicker
+                value={category}
+                onChange={setCategory}
+                categories={categoriesForRole}
+                open={categoryPickerOpen}
+                onOpenChange={setCategoryPickerOpen}
+                error={showValidation ? formErrors.category : undefined}
+              />
+              <Input
+                placeholder="Комментарий"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                className="h-12 bg-secondary"
+              />
+              {!selectedCategoryNoReceipt && (
+                <div className="space-y-1">
+                  {receiptUrl ? (
                     <div className="space-y-2">
                       <p className="text-xs text-muted-foreground">Фото чека:</p>
                       <div className="relative">
@@ -279,18 +334,14 @@ const BalanceExpenses = () => {
                     </div>
                   ) : (
                     <PhotoUpload label="Фото чека" onUpload={setReceiptUrl} />
-                  )
-                )}
-                <Button
-                  onClick={handleSave}
-                  disabled={!canSave}
-                  className="h-12 w-full text-base font-semibold"
-                >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Сохранить"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+                  )}
+                  {showValidation && formErrors.receipt && (
+                    <p className="text-xs text-destructive">{formErrors.receipt}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </ExpenseFormShell>
         )}
       </div>
 
@@ -303,7 +354,7 @@ const BalanceExpenses = () => {
               <SelectTrigger className="h-10 bg-secondary">
                 <SelectValue placeholder="Все водители" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" sideOffset={4}>
                 <SelectItem value="all">Все водители</SelectItem>
                 {drivers.map((d) => (
                   <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
@@ -317,7 +368,7 @@ const BalanceExpenses = () => {
               <SelectTrigger className="h-10 bg-secondary">
                 <SelectValue placeholder="Все категории" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" sideOffset={4}>
                 <SelectItem value="all">Все категории</SelectItem>
                 {categories.map((c) => (
                   <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
@@ -335,7 +386,7 @@ const BalanceExpenses = () => {
               <SelectTrigger className="h-10 bg-secondary">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" sideOffset={4}>
                 <SelectItem value="all">Все</SelectItem>
                 <SelectItem value="expenses">Только расходы</SelectItem>
                 <SelectItem value="topups">Только пополнения</SelectItem>
@@ -427,9 +478,17 @@ const BalanceExpenses = () => {
       {loadingExpenses ? (
         <ExpenseListSkeleton count={6} />
       ) : sortedExpenses.length === 0 ? (
-        <p className="py-10 text-center text-muted-foreground">
-          {hasActiveFilters ? "Нет расходов по выбранным фильтрам" : "Нет расходов"}
-        </p>
+        <div className="flex flex-col items-center gap-4 py-12 text-center">
+          <p className="text-muted-foreground">
+            {hasActiveFilters ? "Нет расходов по выбранным фильтрам" : "Нет расходов"}
+          </p>
+          {!hasActiveFilters && user?.role === "balance" && (
+            <Button onClick={openAddDialog} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Добавить расход
+            </Button>
+          )}
+        </div>
       ) : (
         <div ref={listRef} className="space-y-3">
           <p className="mb-2 text-xs text-muted-foreground">Найдено: {sortedExpenses.length}</p>
@@ -510,6 +569,23 @@ const BalanceExpenses = () => {
       )}
 
       <FullScreenImageOverlay url={zoomImage} onClose={() => setZoomImage(null)} alt="Чек" />
+
+      <AlertDialog open={confirmLargeOpen} onOpenChange={setConfirmLargeOpen}>
+        <AlertDialogContent className="border-border bg-card">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Подтвердить сумму?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {Number(amount.replace(",", ".")).toLocaleString("ru-RU")} {CURRENCY_SYMBOLS[currency]} — крупная сумма.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void performSave()}>
+              Подтвердить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageLayout>
   );
 };
