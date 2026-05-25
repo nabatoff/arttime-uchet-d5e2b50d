@@ -334,7 +334,11 @@ LANGUAGE sql
 STABLE
 SET search_path = public
 AS $$
-  WITH actual AS (
+  WITH first_event AS (
+    SELECT min(event_time) AS first_event_time
+    FROM public.get_driver_ledger_rows(p_user, NULL, NULL)
+  ),
+  actual AS (
     SELECT 'balance'::text AS wallet_type, 'KZT'::text AS currency, kzt::numeric AS amount
     FROM public.balances WHERE user_id = p_user
     UNION ALL
@@ -367,8 +371,12 @@ AS $$
   SELECT
     a.wallet_type,
     a.currency,
-    a.amount - COALESCE(fd.delta_sum, 0) AS amount
+    CASE
+      WHEN fe.first_event_time IS NULL OR p_at < fe.first_event_time THEN 0::numeric
+      ELSE a.amount - COALESCE(fd.delta_sum, 0)
+    END AS amount
   FROM actual a
+  CROSS JOIN first_event fe
   LEFT JOIN future_deltas fd
     ON fd.wallet_type = a.wallet_type
    AND fd.currency = a.currency

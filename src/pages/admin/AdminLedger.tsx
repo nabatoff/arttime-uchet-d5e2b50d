@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { format, endOfDay, startOfDay } from "date-fns";
 import { ru } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeftRight, CalendarRange, ChevronDown, ListFilter, Wallet } from "lucide-react";
+import { ArrowLeftRight, CalendarRange, ListFilter, Wallet } from "lucide-react";
 
 import PageLayout from "@/components/PageLayout";
 import { api } from "@/services/api";
@@ -199,10 +199,6 @@ const AdminLedger = () => {
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-muted-foreground">
-          Исторические ручные корректировки до внедрения журнала могли не сохраниться. Новые корректировки из админки теперь журналируются отдельно.
         </div>
 
         <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-[var(--card-shadow)]">
