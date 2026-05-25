@@ -164,11 +164,16 @@ const AdminDashboard = () => {
     if (!selectedDriver) return;
     setAdjustSaving(true);
     const newAmount = parseNum(adjustAmount);
-    const result = adjustType === "balance" ?
-    await api.updateBalance(selectedDriver.id, adjustCurrency, newAmount) :
-    await api.updatePreBalance(selectedDriver.id, adjustCurrency, newAmount);
+    const result = await api.adjustWalletAmount(
+      selectedDriver.id,
+      adjustType === "balance" ? "balance" : "pre_balance",
+      adjustCurrency,
+      newAmount,
+      currentUser?.name ?? "",
+      `Ручная корректировка из админки (${adjustType === "balance" ? "баланс" : "предбаланс"})`,
+    );
     if (result.success) {
-      toast({ title: "Баланс обновлён" });
+      toast({ title: "Сумма обновлена" });
       vibrateSuccess();
       queryClient.invalidateQueries({ queryKey: ["allUsers"] });
     } else {

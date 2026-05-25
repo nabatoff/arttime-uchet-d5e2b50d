@@ -305,11 +305,55 @@ export type Database = {
         }
         Returns: string
       }
+      exec_adjust_wallet_amount: {
+        Args: {
+          p_comment?: string
+          p_currency: string
+          p_new_amount: number
+          p_performed_by?: string
+          p_user: string
+          p_wallet_type: string
+        }
+        Returns: string
+      }
       exec_delete_expense_with_effects: {
         Args: {
           p_expense_id: string
         }
         Returns: string
+      }
+      get_driver_ledger_opening: {
+        Args: {
+          p_at: string
+          p_user: string
+        }
+        Returns: {
+          amount: number
+          currency: string
+          wallet_type: string
+        }[]
+      }
+      get_driver_ledger_rows: {
+        Args: {
+          p_since?: string | null
+          p_until?: string | null
+          p_user: string
+        }
+        Returns: {
+          delta: number
+          description: string
+          event_id: string
+          event_time: string
+          operation_type: string
+          performed_by: string
+          related_amount: number | null
+          related_currency: string | null
+          row_key: string
+          source_type: string
+          title: string
+          wallet_type: string
+          currency: string
+        }[]
       }
       exec_transfer_pre_to_balance: {
         Args: {

@@ -75,6 +75,46 @@ export interface TransferRecord {
   comment?: string;
 }
 
+export type WalletType = "balance" | "pre_balance";
+
+export interface DriverLedgerOpening {
+  walletType: WalletType;
+  currency: Currency;
+  amount: number;
+}
+
+export interface DriverLedgerRow {
+  rowKey: string;
+  eventId: string;
+  eventTime: string;
+  sourceType: "expense" | "transfer" | "conversion" | "adjustment";
+  operationType: string;
+  walletType: WalletType;
+  currency: Currency;
+  delta: number;
+  title: string;
+  description: string;
+  performedBy: string;
+  relatedCurrency?: Currency;
+  relatedAmount?: number;
+  balanceAfter: number;
+}
+
+export interface DriverLedgerSummaryItem {
+  walletType: WalletType;
+  currency: Currency;
+  opening: number;
+  inflow: number;
+  outflow: number;
+  closing: number;
+}
+
+export interface DriverLedgerData {
+  openings: DriverLedgerOpening[];
+  rows: DriverLedgerRow[];
+  summary: DriverLedgerSummaryItem[];
+}
+
 export type CategoryVisibleTo = "driver" | "balance" | "both";
 
 export interface CategoryInfo {

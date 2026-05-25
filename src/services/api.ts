@@ -1,5 +1,21 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { ApiResponse, AppData, CategoryInfo, Expense, MileageReport, User, Currency, UserRole, TransferRecord, Truck } from "@/types";
+import type {
+  ApiResponse,
+  AppData,
+  CategoryInfo,
+  DriverLedgerData,
+  DriverLedgerOpening,
+  DriverLedgerRow,
+  DriverLedgerSummaryItem,
+  Expense,
+  MileageReport,
+  User,
+  Currency,
+  UserRole,
+  TransferRecord,
+  Truck,
+  WalletType,
+} from "@/types";
 
 const CURRENCY_COLS = ["kzt", "rub", "uzs", "cny", "eur"] as const;
 type CurrencyCol = (typeof CURRENCY_COLS)[number];
@@ -112,6 +128,14 @@ function fail(error: string): ApiResponse<never> {
   return { success: false, error };
 }
 
+function isCurrency(value: string): value is Currency {
+  return CURRENCY_COLS.includes(value.toLowerCase() as CurrencyCol);
+}
+
+function normalizeWalletType(value: string): WalletType {
+  return value === "pre_balance" ? "pre_balance" : "balance";
+}
+
 export const api = {
   // ==================== AUTH ====================
   login: async (login: string, password: string): Promise<ApiResponse<User>> => {
@@ -218,6 +242,133 @@ export const api = {
       .upsert({ user_id: driverId, [col]: amount }, { onConflict: "user_id" });
     if (error) return fail(error.message);
     return ok(null);
+  },
+
+  adjustWalletAmount: async (
+    driverId: string,
+    walletType: WalletType,
+    currency: Currency,
+    amount: number,
+    performedBy?: string,
+    comment?: string,
+  ) => {
+    const { error } = await supabase.rpc("exec_adjust_wallet_amount", {
+      p_user: driverId,
+      p_wallet_type: walletType,
+      p_currency: currency,
+      p_new_amount: amount,
+      p_performed_by: performedBy ?? "",
+      p_comment: comment ?? "",
+    });
+    if (error) return fail(error.message);
+    return ok(null);
+  },
+
+  getDriverLedger: async (
+    driverId: string,
+    since: string,
+    until: string,
+  ): Promise<ApiResponse<DriverLedgerData>> => {
+    const [{ data: openingRows, error: openingErr }, { data: ledgerRows, error: ledgerErr }] = await Promise.all([
+      supabase.rpc("get_driver_ledger_opening", {
+        p_user: driverId,
+        p_at: since,
+      }),
+      supabase.rpc("get_driver_ledger_rows", {
+        p_user: driverId,
+        p_since: since,
+        p_until: until,
+      }),
+    ]);
+
+    if (openingErr) return fail(openingErr.message);
+    if (ledgerErr) return fail(ledgerErr.message);
+
+    const openings: DriverLedgerOpening[] = (openingRows || [])
+      .filter((row) => isCurrency(String(row.currency || "")))
+      .map((row) => ({
+        walletType: normalizeWalletType(String(row.wallet_type || "")),
+        currency: String(row.currency).toUpperCase() as Currency,
+        amount: Number(row.amount) || 0,
+      }));
+
+    for (const walletType of ["balance", "pre_balance"] as const) {
+      for (const currency of ["KZT", "RUB", "UZS", "CNY", "EUR"] as const) {
+        if (!openings.some((item) => item.walletType === walletType && item.currency === currency)) {
+          openings.push({ walletType, currency, amount: 0 });
+        }
+      }
+    }
+
+    const running = new Map<string, number>();
+    for (const item of openings) {
+      running.set(`${item.walletType}:${item.currency}`, item.amount);
+    }
+
+    const rows: DriverLedgerRow[] = [];
+    for (const row of ledgerRows || []) {
+      const currency = String(row.currency || "").toUpperCase();
+      if (!isCurrency(currency)) continue;
+      const walletType = normalizeWalletType(String(row.wallet_type || ""));
+      const key = `${walletType}:${currency}`;
+      const next = (running.get(key) || 0) + (Number(row.delta) || 0);
+      running.set(key, next);
+      rows.push({
+        rowKey: String(row.row_key || ""),
+        eventId: String(row.event_id || ""),
+        eventTime: String(row.event_time || ""),
+        sourceType: (String(row.source_type || "") as DriverLedgerRow["sourceType"]) || "expense",
+        operationType: String(row.operation_type || ""),
+        walletType,
+        currency,
+        delta: Number(row.delta) || 0,
+        title: String(row.title || ""),
+        description: String(row.description || ""),
+        performedBy: String(row.performed_by || ""),
+        relatedCurrency: isCurrency(String(row.related_currency || "").toUpperCase())
+          ? (String(row.related_currency || "").toUpperCase() as Currency)
+          : undefined,
+        relatedAmount: row.related_amount == null ? undefined : Number(row.related_amount),
+        balanceAfter: next,
+      });
+    }
+
+    const summaryMap = new Map<string, DriverLedgerSummaryItem>();
+    for (const item of openings) {
+      summaryMap.set(`${item.walletType}:${item.currency}`, {
+        walletType: item.walletType,
+        currency: item.currency,
+        opening: item.amount,
+        inflow: 0,
+        outflow: 0,
+        closing: item.amount,
+      });
+    }
+
+    for (const row of rows) {
+      const key = `${row.walletType}:${row.currency}`;
+      const current = summaryMap.get(key) ?? {
+        walletType: row.walletType,
+        currency: row.currency,
+        opening: 0,
+        inflow: 0,
+        outflow: 0,
+        closing: 0,
+      };
+      if (row.delta >= 0) current.inflow += row.delta;
+      else current.outflow += Math.abs(row.delta);
+      current.closing = row.balanceAfter;
+      summaryMap.set(key, current);
+    }
+
+    return ok({
+      openings,
+      rows,
+      summary: [...summaryMap.values()].sort((a, b) => {
+        if (a.walletType !== b.walletType) return a.walletType.localeCompare(b.walletType);
+        return a.currency.localeCompare(b.currency);
+      }),
+    });
   },
 
   // ==================== TRANSFERS ====================

@@ -25,6 +25,7 @@ const AdminDrivers = lazy(() => import("./pages/admin/AdminDrivers"));
 const AdminExpenses = lazy(() => import("./pages/admin/AdminExpenses"));
 const AdminCategories = lazy(() => import("./pages/admin/AdminCategories"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
+const AdminLedger = lazy(() => import("./pages/admin/AdminLedger"));
 const AdminTrucks = lazy(() => import("./pages/admin/AdminTrucks"));
 
 function AdminRoutesFallback() {
@@ -74,6 +75,7 @@ function AppRoutes() {
           <Route path="/admin/expenses" element={<AdminExpenses />} />
           <Route path="/admin/mileage" element={<AdminMileage />} />
           <Route path="/admin/settings" element={<AdminSettings />} />
+          <Route path="/admin/ledger" element={<AdminLedger />} />
           <Route path="/admin/drivers" element={<AdminDrivers backTo="/admin/settings" />} />
           <Route path="/admin/categories" element={<AdminCategories backTo="/admin/settings" />} />
           <Route path="/admin/trucks" element={<AdminTrucks backTo="/admin/settings" />} />
