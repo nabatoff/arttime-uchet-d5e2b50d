@@ -291,6 +291,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      exec_add_expense_with_effects: {
+        Args: {
+          p_amount: number
+          p_category: string
+          p_comment?: string
+          p_currency: string
+          p_date?: string
+          p_performed_by?: string
+          p_receipt_url?: string
+          p_truck?: string
+          p_user: string
+        }
+        Returns: string
+      }
+      exec_delete_expense_with_effects: {
+        Args: {
+          p_expense_id: string
+        }
+        Returns: string
+      }
       exec_transfer_pre_to_balance: {
         Args: {
           p_allow_negative?: boolean
@@ -313,6 +333,20 @@ export type Database = {
           p_performed_by?: string
           p_to: string
           p_user: string
+        }
+        Returns: string
+      }
+      exec_update_expense_with_effects: {
+        Args: {
+          p_amount: number
+          p_category: string
+          p_comment?: string
+          p_currency: string
+          p_date?: string
+          p_expense_id: string
+          p_performed_by?: string
+          p_receipt_url?: string
+          p_truck?: string
         }
         Returns: string
       }

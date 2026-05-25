@@ -466,89 +466,54 @@ export const api = {
       if (mileageToday?.[0]?.truck) truckName = mileageToday[0].truck;
     }
 
-    const { data, error } = await supabase.from("expenses").insert({
-      user_id: expense.driverId,
-      category: expense.category,
-      amount: expense.amount,
-      currency: expense.currency,
-      comment: expense.comment,
-      receipt_url: expense.receiptUrl,
-      performed_by: performedByName ?? "",
-      truck: truckName,
-    }).select("*, users!expenses_user_id_fkey(name)").single();
+    const { data: expenseId, error } = await supabase.rpc("exec_add_expense_with_effects", {
+      p_user: expense.driverId,
+      p_date: expense.date,
+      p_category: expense.category,
+      p_amount: expense.amount,
+      p_currency: expense.currency,
+      p_comment: expense.comment,
+      p_receipt_url: expense.receiptUrl,
+      p_performed_by: performedByName ?? "",
+      p_truck: truckName,
+    });
 
     if (error) return fail(error.message);
 
-    // Deduct from balance (except for "Пополнение")
-    if (expense.category !== "Пополнение") {
-      const col = currencyToCol(expense.currency);
-      const { data: balRow } = await supabase.from("balances").select("*").eq("user_id", expense.driverId).maybeSingle();
-      const current = balRow ? Number(balRow[col]) || 0 : 0;
-      await supabase.from("balances").upsert({ user_id: expense.driverId, [col]: current - expense.amount }, { onConflict: "user_id" });
-    }
-
     return ok({
-      id: data.id,
-      driverId: String(data.user_id),
-      date: data.date,
-      category: data.category,
-      amount: Number(data.amount),
-      currency: data.currency as Currency,
-      comment: data.comment || "",
-      receiptUrl: data.receipt_url || "",
-      performedBy: data.performed_by || "",
-      truck: data.truck || "",
+      id: String(expenseId ?? ""),
+      driverId: expense.driverId,
+      date: expense.date,
+      category: expense.category,
+      amount: expense.amount,
+      currency: expense.currency,
+      comment: expense.comment || "",
+      receiptUrl: expense.receiptUrl || "",
+      performedBy: performedByName || "",
+      truck: truckName || "",
     } as Expense);
   },
 
   updateExpense: async (expense: Expense) => {
-    // Get old expense to reverse balance
-    const { data: old } = await supabase.from("expenses").select("*").eq("id", expense.id).maybeSingle();
-    if (!old) return fail("Расход не найден");
-
-    const oldCol = currencyToCol(old.currency as Currency);
-    const newCol = currencyToCol(expense.currency);
-
-    // Reverse old balance change
-    if (old.category !== "Пополнение" && old.user_id) {
-      const { data: balRow } = await supabase.from("balances").select("*").eq("user_id", old.user_id).maybeSingle();
-      const current = balRow ? Number(balRow[oldCol]) || 0 : 0;
-      await supabase.from("balances").upsert({ user_id: old.user_id, [oldCol]: current + Number(old.amount) }, { onConflict: "user_id" });
-    }
-    // Apply new balance change
-    if (expense.category !== "Пополнение" && old.user_id) {
-      const { data: balRow } = await supabase.from("balances").select("*").eq("user_id", old.user_id).maybeSingle();
-      const current = balRow ? Number(balRow[newCol]) || 0 : 0;
-      await supabase.from("balances").upsert({ user_id: old.user_id, [newCol]: current - expense.amount }, { onConflict: "user_id" });
-    }
-
-    const { error } = await supabase.from("expenses").update({
-      category: expense.category,
-      amount: expense.amount,
-      currency: expense.currency,
-      comment: expense.comment,
-      receipt_url: expense.receiptUrl,
-      performed_by: expense.performedBy || "",
-      truck: expense.truck || "",
-    }).eq("id", expense.id);
-
+    const { error } = await supabase.rpc("exec_update_expense_with_effects", {
+      p_expense_id: expense.id,
+      p_date: expense.date,
+      p_category: expense.category,
+      p_amount: expense.amount,
+      p_currency: expense.currency,
+      p_comment: expense.comment,
+      p_receipt_url: expense.receiptUrl,
+      p_performed_by: expense.performedBy || "",
+      p_truck: expense.truck || "",
+    });
     if (error) return fail(error.message);
     return ok(null);
   },
 
   deleteExpense: async (expenseId: string) => {
-    const { data: old } = await supabase.from("expenses").select("*").eq("id", expenseId).maybeSingle();
-    if (!old) return fail("Запись не найдена");
-
-    // Restore balance
-    if (old.category !== "Пополнение" && old.user_id) {
-      const col = currencyToCol(old.currency as Currency);
-      const { data: balRow } = await supabase.from("balances").select("*").eq("user_id", old.user_id).maybeSingle();
-      const current = balRow ? Number(balRow[col]) || 0 : 0;
-      await supabase.from("balances").upsert({ user_id: old.user_id, [col]: current + Number(old.amount) }, { onConflict: "user_id" });
-    }
-
-    const { error } = await supabase.from("expenses").delete().eq("id", expenseId);
+    const { error } = await supabase.rpc("exec_delete_expense_with_effects", {
+      p_expense_id: expenseId,
+    });
     if (error) return fail(error.message);
     return ok(null);
   },

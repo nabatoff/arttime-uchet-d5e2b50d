@@ -281,7 +281,7 @@ const AdminExpenses = () => {
   const handleEditSave = async () => {
     if (!editExpense) return;
     setSaving(true);
-    await api.updateExpense({
+    const result = await api.updateExpense({
       ...editExpense,
       category: editCategory,
       amount: Number(editAmount),
@@ -289,22 +289,30 @@ const AdminExpenses = () => {
       comment: editComment,
       truck: editTruck || undefined,
     });
-    toast({ title: "Запись обновлена" });
-    vibrateSuccess();
+    if (result.success) {
+      toast({ title: "Запись обновлена" });
+      vibrateSuccess();
+      setEditOpen(false);
+      await reloadData();
+    } else {
+      toast({ title: result.error || "Ошибка обновления", variant: "destructive" });
+    }
     setSaving(false);
-    setEditOpen(false);
-    await reloadData();
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setSaving(true);
-    await api.deleteExpense(deleteTarget.id);
-    toast({ title: "Запись удалена" });
-    vibrateSuccess();
+    const result = await api.deleteExpense(deleteTarget.id);
+    if (result.success) {
+      toast({ title: "Запись удалена" });
+      vibrateSuccess();
+      setDeleteTarget(null);
+      await reloadData();
+    } else {
+      toast({ title: result.error || "Ошибка удаления", variant: "destructive" });
+    }
     setSaving(false);
-    setDeleteTarget(null);
-    await reloadData();
   };
 
   const openEditTransfer = (t: TransferRecord) => {
@@ -359,12 +367,10 @@ const AdminExpenses = () => {
     setSaving(true);
 
     const operatorName = currentUser?.name ?? "";
+    let success = false;
 
     if (addType === "topup") {
-      const driver = drivers.find((d) => String(d.id) === addDriver);
-      const currentPreBalance = driver?.preBalances?.[addCurrency] ?? 0;
-      await api.updatePreBalance(addDriver, addCurrency, currentPreBalance + Number(addAmount));
-      await api.addExpense(
+      const result = await api.addExpense(
         {
           driverId: addDriver,
           date: new Date().toISOString(),
@@ -376,10 +382,15 @@ const AdminExpenses = () => {
         },
         operatorName
       );
-      toast({ title: "Баланс пополнен" });
-      vibrateSuccess();
+      if (result.success) {
+        toast({ title: "Баланс пополнен" });
+        vibrateSuccess();
+        success = true;
+      } else {
+        toast({ title: result.error || "Ошибка пополнения", variant: "destructive" });
+      }
     } else {
-      await api.addExpense(
+      const result = await api.addExpense(
         {
           driverId: addDriver,
           date: new Date().toISOString(),
@@ -392,16 +403,23 @@ const AdminExpenses = () => {
         },
         operatorName
       );
-      toast({ title: "Расход добавлен" });
-      vibrateSuccess();
+      if (result.success) {
+        toast({ title: "Расход добавлен" });
+        vibrateSuccess();
+        success = true;
+      } else {
+        toast({ title: result.error || "Ошибка добавления расхода", variant: "destructive" });
+      }
     }
+
+    setSaving(false);
+    if (!success) return;
 
     setAddOpen(false);
     setAddAmount("");
     setAddComment("");
     setAddCategory("");
     setAddReceiptUrl("");
-    setSaving(false);
     await reloadData();
   };
 
