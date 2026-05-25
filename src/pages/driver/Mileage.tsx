@@ -7,7 +7,7 @@ import PhotoUpload from "@/components/PhotoUpload";
 import OfflineBanner from "@/components/OfflineBanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import TruckPicker from "@/components/TruckPicker";
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -24,6 +24,7 @@ const Mileage = () => {
   const [truck, setTruck] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [truckPickerOpen, setTruckPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showMileageHint, setShowMileageHint] = useState(() => !localStorage.getItem("mileage-tooltip-seen"));
 
@@ -129,16 +130,14 @@ const Mileage = () => {
           Для начала работы укажите текущий пробег, тягач и загрузите фото спидометра
         </p>
         <div className="w-full max-w-sm space-y-4">
-          <Select value={truck} onValueChange={setTruck}>
-            <SelectTrigger className="h-12 bg-secondary">
-              <SelectValue placeholder="Тягач" />
-            </SelectTrigger>
-            <SelectContent>
-              {trucks.map((t) => (
-                <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <TruckPicker
+            value={truck}
+            onChange={setTruck}
+            trucks={trucks}
+            open={truckPickerOpen}
+            onOpenChange={setTruckPickerOpen}
+            placeholder="Тягач"
+          />
           <Input
             type="number"
             placeholder="Километраж"

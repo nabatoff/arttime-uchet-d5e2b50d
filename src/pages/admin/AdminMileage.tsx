@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import TruckPicker from "@/components/TruckPicker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Loader2, X, CalendarIcon, Pencil, Trash2 } from "lucide-react";
@@ -37,6 +38,7 @@ const AdminMileage = () => {
   const [editReport, setEditReport] = useState<MileageReport | null>(null);
   const [editKm, setEditKm] = useState("");
   const [editTruck, setEditTruck] = useState("");
+  const [editTruckPickerOpen, setEditTruckPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<MileageReport | null>(null);
 
@@ -264,17 +266,16 @@ const AdminMileage = () => {
                 onChange={(e) => setEditKm(e.target.value)}
                 className="bg-secondary border-border"
               />
-              <Select value={editTruck || "__none__"} onValueChange={(v) => setEditTruck(v === "__none__" ? "" : v)}>
-                <SelectTrigger className="bg-secondary border-border">
-                  <SelectValue placeholder="Тягач" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">— Без тягача</SelectItem>
-                  {trucks.map((t) => (
-                    <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <TruckPicker
+                value={editTruck}
+                onChange={setEditTruck}
+                trucks={trucks}
+                open={editTruckPickerOpen}
+                onOpenChange={setEditTruckPickerOpen}
+                placeholder="Тягач"
+                allowEmpty
+                emptyLabel="— Без тягача"
+              />
               <Button className="w-full" onClick={handleEditSave} disabled={saving}>
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Сохранить

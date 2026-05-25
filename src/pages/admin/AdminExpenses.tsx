@@ -16,6 +16,7 @@ import { cn, vibrateSuccess } from "@/lib/utils";
 import { ExpenseListSkeleton } from "@/components/ExpenseCardSkeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import CategoryPicker from "@/components/CategoryPicker";
+import TruckPicker from "@/components/TruckPicker";
 import ExpenseFormShell from "@/components/ExpenseFormShell";
 import { getExpenseFormErrors, shouldConfirmLargeExpense } from "@/lib/expenseFormValidation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -61,6 +62,8 @@ const AdminExpenses = () => {
   const [deleteTransferTarget, setDeleteTransferTarget] = useState<TransferRecord | null>(null);
   const [addCategoryPickerOpen, setAddCategoryPickerOpen] = useState(false);
   const [editCategoryPickerOpen, setEditCategoryPickerOpen] = useState(false);
+  const [addTruckPickerOpen, setAddTruckPickerOpen] = useState(false);
+  const [editTruckPickerOpen, setEditTruckPickerOpen] = useState(false);
   const [showAddValidation, setShowAddValidation] = useState(false);
   const [showEditValidation, setShowEditValidation] = useState(false);
   const [confirmLargeOpen, setConfirmLargeOpen] = useState(false);
@@ -636,17 +639,16 @@ const AdminExpenses = () => {
             )}
 
             {addType === "expense" && (
-              <Select value={addTruck || "__none__"} onValueChange={(v) => setAddTruck(v === "__none__" ? "" : v)}>
-                <SelectTrigger className="h-12 bg-secondary border-border">
-                  <SelectValue placeholder="Тягач (необязательно)" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4}>
-                  <SelectItem value="__none__">—</SelectItem>
-                  {trucks.map((t) => (
-                    <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <TruckPicker
+                value={addTruck}
+                onChange={setAddTruck}
+                trucks={trucks}
+                open={addTruckPickerOpen}
+                onOpenChange={setAddTruckPickerOpen}
+                placeholder="Тягач (необязательно)"
+                allowEmpty
+                emptyLabel="—"
+              />
             )}
 
             <div className="space-y-1">
@@ -1086,17 +1088,16 @@ const AdminExpenses = () => {
               ))}
             </div>
             <Input placeholder="Комментарий" value={editComment} onChange={(e) => setEditComment(e.target.value)} className="h-12 bg-secondary border-border" />
-            <Select value={editTruck || "__none__"} onValueChange={(v) => setEditTruck(v === "__none__" ? "" : v)}>
-              <SelectTrigger className="h-12 bg-secondary border-border">
-                <SelectValue placeholder="Тягач" />
-              </SelectTrigger>
-              <SelectContent position="popper" sideOffset={4}>
-                <SelectItem value="__none__">—</SelectItem>
-                {trucks.map((t) => (
-                  <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <TruckPicker
+              value={editTruck}
+              onChange={setEditTruck}
+              trucks={trucks}
+              open={editTruckPickerOpen}
+              onOpenChange={setEditTruckPickerOpen}
+              placeholder="Тягач"
+              allowEmpty
+              emptyLabel="—"
+            />
             <Button className="h-12 w-full" onClick={handleEditSave} disabled={saving}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Сохранить

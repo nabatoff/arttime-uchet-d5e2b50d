@@ -598,7 +598,7 @@ export const api = {
 
     const isAdmin = role === "Admin" || role === "admin";
     if (!isAdmin) {
-      query = query.eq("user_id", driverId).neq("category", "Пополнение");
+      query = query.eq("user_id", driverId);
     } else {
       if (params?.filterUserId) query = query.eq("user_id", params.filterUserId);
       if (params?.filterCategory) {
