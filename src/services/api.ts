@@ -456,6 +456,40 @@ export const api = {
     })));
   },
 
+  getDriverTransfers: async (
+    driverId: string,
+    params?: { since?: string; until?: string },
+  ): Promise<ApiResponse<TransferRecord[]>> => {
+    let query = supabase
+      .from("transfers")
+      .select("*, from_user:users!transfers_from_driver_id_fkey(name), to_user:users!transfers_to_driver_id_fkey(name)")
+      .or(`from_driver_id.eq.${driverId},to_driver_id.eq.${driverId}`)
+      .order("date", { ascending: false });
+
+    if (params?.since) query = query.gte("date", params.since);
+    if (params?.until) query = query.lte("date", params.until);
+
+    const { data, error } = await query;
+    if (error) return fail(error.message);
+
+    return ok((data || []).map((r: Record<string, unknown>) => ({
+      id: String(r.id),
+      fromDriverId: String(r.from_driver_id || ""),
+      toDriverId: String(r.to_driver_id || ""),
+      currency: String(r.currency ?? ""),
+      amount: Number(r.amount) || 0,
+      date: String(r.date),
+      performedBy: String(r.performed_by || ""),
+      comment: String(r.comment || ""),
+      fromDriverName: (r.from_user as Record<string, unknown> | null)?.name
+        ? String((r.from_user as Record<string, unknown>).name)
+        : undefined,
+      toDriverName: (r.to_user as Record<string, unknown> | null)?.name
+        ? String((r.to_user as Record<string, unknown>).name)
+        : undefined,
+    })));
+  },
+
   updateTransfer: async (transfer: { id: string; fromDriverId: string; toDriverId: string; currency: string; amount: number; comment?: string }) => {
     const { data: old } = await supabase.from("transfers").select("*").eq("id", transfer.id).maybeSingle();
     if (!old) return fail("Перевод не найден");

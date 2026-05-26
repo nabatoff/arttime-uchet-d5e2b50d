@@ -73,6 +73,8 @@ export interface TransferRecord {
   date: string;
   performedBy: string;
   comment?: string;
+  fromDriverName?: string;
+  toDriverName?: string;
 }
 
 export type WalletType = "balance" | "pre_balance";

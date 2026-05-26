@@ -534,10 +534,17 @@ const BalanceExpenses = () => {
                       {getDriverName(String(expense.driverId))}
                     </p>
                     <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
-                      <span className="inline-flex items-center rounded-md bg-secondary/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                        {expense.category}
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium",
+                          isTopup
+                            ? "bg-success/15 text-success"
+                            : "bg-secondary/80 text-muted-foreground",
+                        )}
+                      >
+                        {isTopup ? "Пополнение предбаланса" : expense.category}
                       </span>
-                      {expense.truck && (
+                      {!isTopup && expense.truck && (
                         <>
                           <span className="text-[11px] text-muted-foreground/60">·</span>
                           <span className="text-[11px] text-muted-foreground/80">{expense.truck}</span>
@@ -548,8 +555,16 @@ const BalanceExpenses = () => {
                         {format(expDate, "dd MMM, HH:mm", { locale: ru })}
                       </span>
                     </div>
-                    {expense.comment && (
+                    {isTopup && expense.comment && (
+                      <p className="mt-1 text-xs text-foreground/90">{expense.comment}</p>
+                    )}
+                    {!isTopup && expense.comment && (
                       <p className="mt-1 truncate text-xs text-muted-foreground/80">{expense.comment}</p>
+                    )}
+                    {isTopup && expense.performedBy && (
+                      <p className="mt-0.5 text-[11px] text-muted-foreground/70">
+                        Оператор: {expense.performedBy}
+                      </p>
                     )}
                   </div>
                 </div>

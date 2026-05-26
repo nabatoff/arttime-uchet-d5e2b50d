@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/services/api";
 import PageLayout from "@/components/PageLayout";
@@ -13,8 +13,9 @@ import ExpenseFormShell from "@/components/ExpenseFormShell";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { getExpenseFormErrors, shouldConfirmLargeExpense } from "@/lib/expenseFormValidation";
 import { Loader2, Plus, Pencil, X } from "lucide-react";
-import { ALL_CURRENCIES, CURRENCY_SYMBOLS, type Currency, type Expense } from "@/types";
-import { format, isToday, subDays, isAfter, startOfDay } from "date-fns";
+import { ALL_CURRENCIES, CURRENCY_SYMBOLS, type Currency, type Expense, type TransferRecord } from "@/types";
+import { describeDriverTransfer, formatTransferCurrency } from "@/lib/driverTransferDisplay";
+import { format, isToday, subDays, startOfDay } from "date-fns";
 import { ru } from "date-fns/locale";
 import { cn, filterCategoriesByRole, vibrateSuccess } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -58,18 +59,39 @@ const Expenses = () => {
       return raw && raw.length > 0 ? raw : ALL_CURRENCIES;
     })();
 
+  const EXPENSES_LOOKBACK_DAYS = 7;
+  const expensesSince = startOfDay(subDays(new Date(), EXPENSES_LOOKBACK_DAYS - 1)).toISOString();
+
   const { data: expenses = [], isLoading: loadingExpenses } = useQuery({
-    queryKey: ["expenses", user?.id],
+    queryKey: ["expenses", user?.id, expensesSince],
     queryFn: async () => {
-      const result = await api.getExpenses(user!.id);
-      if (result.success && result.data) {
-        const threeDaysAgo = startOfDay(subDays(new Date(), 3));
-        return result.data.filter((e) => isAfter(new Date(e.date), threeDaysAgo));
-      }
+      const result = await api.getExpenses(user!.id, user!.role, { since: expensesSince });
+      if (result.success && result.data) return result.data;
       return [] as Expense[];
     },
     enabled: !!user,
   });
+
+  const { data: transfers = [], isLoading: loadingTransfers } = useQuery({
+    queryKey: ["driverTransfers", user?.id, expensesSince],
+    queryFn: async () => {
+      const result = await api.getDriverTransfers(user!.id, { since: expensesSince });
+      if (result.success && result.data) return result.data;
+      return [] as TransferRecord[];
+    },
+    enabled: !!user,
+  });
+
+  const feedItems = useMemo(() => {
+    const items: Array<
+      | { kind: "expense"; date: string; expense: Expense }
+      | { kind: "transfer"; date: string; transfer: TransferRecord }
+    > = [
+      ...expenses.map((expense) => ({ kind: "expense" as const, date: expense.date, expense })),
+      ...transfers.map((transfer) => ({ kind: "transfer" as const, date: transfer.date, transfer })),
+    ];
+    return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [expenses, transfers]);
 
   const { data: balances } = useQuery({
     queryKey: ["balance", user?.id],
@@ -101,7 +123,7 @@ const Expenses = () => {
   });
   const hasFormErrors = Object.keys(formErrors).length > 0;
 
-  const loading = loadingExpenses;
+  const loading = loadingExpenses || loadingTransfers;
 
   const resetForm = () => {
     setAmount("");
@@ -350,9 +372,9 @@ const Expenses = () => {
 
       {loading ? (
         <ExpenseListSkeleton count={4} />
-      ) : expenses.length === 0 ? (
+      ) : feedItems.length === 0 ? (
         <div className="flex flex-col items-center gap-4 py-12 text-center">
-          <p className="text-muted-foreground">Нет расходов и пополнений за последние 3 дня</p>
+          <p className="text-muted-foreground">Нет расходов и переводов за последние {EXPENSES_LOOKBACK_DAYS} дней</p>
           <Button onClick={openAdd} className="gap-2">
             <Plus className="h-4 w-4" />
             Добавить первый расход
@@ -360,12 +382,69 @@ const Expenses = () => {
         </div>
       ) : (
         <div ref={listRef} className="space-y-3">
-          {[...expenses]
-            .sort(
-              (a, b) =>
-                new Date(b.date).getTime() - new Date(a.date).getTime(),
-            )
-            .map((expense) => {
+          {feedItems.map((item) => {
+            if (item.kind === "transfer") {
+              const transfer = item.transfer;
+              const transferDate = new Date(transfer.date);
+              const meta = describeDriverTransfer(transfer, user!.id);
+              return (
+                <div
+                  key={`transfer-${transfer.id}`}
+                  className={cn(
+                    "group relative overflow-hidden rounded-2xl border border-border/60 bg-card p-4 transition-all duration-200 hover:border-border",
+                    "shadow-[var(--card-shadow)]",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl",
+                      meta.isPositive ? "bg-success" : "bg-primary",
+                    )}
+                  />
+                  <div className="flex items-start gap-3 pl-2">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
+                      <span className="text-lg">{meta.isPositive ? "↗" : "↘"}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span
+                        className={cn(
+                          "text-base font-bold font-display tracking-tight",
+                          meta.isPositive ? "text-success" : "text-primary",
+                        )}
+                      >
+                        {meta.isPositive ? "+" : "−"}
+                        {formatTransferCurrency(meta.currencyLabel, meta.amount)}
+                      </span>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                          {meta.label}
+                        </span>
+                        {meta.detail && (
+                          <>
+                            <span className="text-[11px] text-muted-foreground/60">·</span>
+                            <span className="text-[11px] text-muted-foreground/80">{meta.detail}</span>
+                          </>
+                        )}
+                        <span className="text-[11px] text-muted-foreground/60">·</span>
+                        <span className="text-[11px] text-muted-foreground/60">
+                          {format(transferDate, "dd MMM, HH:mm", { locale: ru })}
+                        </span>
+                      </div>
+                      {transfer.comment && (
+                        <p className="mt-1 text-xs text-foreground/90">{transfer.comment}</p>
+                      )}
+                      {transfer.performedBy && (
+                        <p className="mt-0.5 text-[11px] text-muted-foreground/70">
+                          Оператор: {transfer.performedBy}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            const expense = item.expense;
             const expenseDate = new Date(expense.date);
             const editable = isToday(expenseDate) && expense.category !== "Пополнение";
             const isTopup = expense.category === "Пополнение";
