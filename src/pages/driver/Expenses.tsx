@@ -15,7 +15,7 @@ import { getExpenseFormErrors, shouldConfirmLargeExpense } from "@/lib/expenseFo
 import { Loader2, Plus, Pencil, X } from "lucide-react";
 import { ALL_CURRENCIES, CURRENCY_SYMBOLS, type Currency, type Expense, type TransferRecord } from "@/types";
 import { describeDriverTransfer, formatTransferCurrency } from "@/lib/driverTransferDisplay";
-import { format, isToday, subDays, startOfDay } from "date-fns";
+import { format, isToday, startOfDay, endOfDay, subDays } from "date-fns";
 import { ru } from "date-fns/locale";
 import { cn, filterCategoriesByRole, vibrateSuccess } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -59,13 +59,16 @@ const Expenses = () => {
       return raw && raw.length > 0 ? raw : ALL_CURRENCIES;
     })();
 
-  const EXPENSES_LOOKBACK_DAYS = 7;
-  const expensesSince = startOfDay(subDays(new Date(), EXPENSES_LOOKBACK_DAYS - 1)).toISOString();
+  const periodFrom = startOfDay(subDays(new Date(), 29));
+  const periodTo = endOfDay(new Date());
+  const since = periodFrom.toISOString();
+  const until = periodTo.toISOString();
+  const periodLabel = "последние 30 дней";
 
   const { data: expenses = [], isLoading: loadingExpenses } = useQuery({
-    queryKey: ["expenses", user?.id, expensesSince],
+    queryKey: ["expenses", user?.id, since, until],
     queryFn: async () => {
-      const result = await api.getExpenses(user!.id, user!.role, { since: expensesSince });
+      const result = await api.getExpenses(user!.id, user!.role, { since, until });
       if (result.success && result.data) return result.data;
       return [] as Expense[];
     },
@@ -73,9 +76,9 @@ const Expenses = () => {
   });
 
   const { data: transfers = [], isLoading: loadingTransfers } = useQuery({
-    queryKey: ["driverTransfers", user?.id, expensesSince],
+    queryKey: ["driverTransfers", user?.id, since, until],
     queryFn: async () => {
-      const result = await api.getDriverTransfers(user!.id, { since: expensesSince });
+      const result = await api.getDriverTransfers(user!.id, { since, until });
       if (result.success && result.data) return result.data;
       return [] as TransferRecord[];
     },
@@ -374,7 +377,7 @@ const Expenses = () => {
         <ExpenseListSkeleton count={4} />
       ) : feedItems.length === 0 ? (
         <div className="flex flex-col items-center gap-4 py-12 text-center">
-          <p className="text-muted-foreground">Нет расходов и переводов за последние {EXPENSES_LOOKBACK_DAYS} дней</p>
+          <p className="text-muted-foreground">Нет расходов и поступлений за {periodLabel}</p>
           <Button onClick={openAdd} className="gap-2">
             <Plus className="h-4 w-4" />
             Добавить первый расход
@@ -382,6 +385,7 @@ const Expenses = () => {
         </div>
       ) : (
         <div ref={listRef} className="space-y-3">
+          <p className="text-xs text-muted-foreground">История за {periodLabel}</p>
           {feedItems.map((item) => {
             if (item.kind === "transfer") {
               const transfer = item.transfer;
